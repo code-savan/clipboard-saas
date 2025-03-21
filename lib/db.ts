@@ -23,7 +23,9 @@ export interface ForumPost {
 export interface User {
   id?: string;
   email: string;
+  password?: string; // Password field that can be null
   is_admin?: boolean;
+  is_super_admin?: boolean;
   created_at?: string;
 }
 
@@ -77,7 +79,8 @@ export const getEmails = async (): Promise<EmailSubscription[]> => {
 // Forum posts
 export const saveForumPost = async (name: string, email: string | null, message: string): Promise<ForumPost | null> => {
   try {
-    // If there's an email, save it first
+    // If there's an email, save it to the emails table only (no user creation)
+    // This only collects the email for marketing purposes, but doesn't create a user account
     if (email) {
       await saveEmail(email, 'forum');
     }
@@ -140,7 +143,12 @@ export const likeForumPost = async (id: string): Promise<ForumPost | null> => {
 };
 
 // User management
-export const createUser = async (email: string, isAdmin: boolean = false): Promise<boolean> => {
+export const createUser = async (
+  email: string,
+  isAdmin: boolean = false,
+  isSuperAdmin: boolean = false,
+  password?: string
+): Promise<boolean> => {
   try {
     // Check if user already exists
     const { data: existingUsers } = await publicSupabase
@@ -148,25 +156,45 @@ export const createUser = async (email: string, isAdmin: boolean = false): Promi
       .select('*')
       .eq('email', email);
 
+    // Hash password if provided
+    let hashedPassword: string | undefined = undefined;
+    if (password) {
+      // Import bcrypt inside function to avoid issues with SSR
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
     // If user doesn't exist, create one
     if (!existingUsers || existingUsers.length === 0) {
       const { error } = await publicSupabase
         .from('users')
-        .insert([{ email, is_admin: isAdmin }]);
+        .insert([{
+          email,
+          is_admin: isAdmin,
+          is_super_admin: isSuperAdmin,
+          password: hashedPassword
+        }]);
 
       if (error) {
         console.error('Error creating user:', error);
         return false;
       }
-    } else if (isAdmin) {
-      // Update existing user to have admin privileges if specified
+    } else if (isAdmin || isSuperAdmin || hashedPassword) {
+      // Update existing user to have admin/super admin privileges if specified
+      // and/or update password if provided
+      const updateData: any = {};
+      if (isAdmin) updateData.is_admin = true;
+      if (isSuperAdmin) updateData.is_super_admin = true;
+      if (hashedPassword) updateData.password = hashedPassword;
+
       const { error } = await publicSupabase
         .from('users')
-        .update({ is_admin: true })
+        .update(updateData)
         .eq('email', email);
 
       if (error) {
-        console.error('Error updating user to admin:', error);
+        console.error('Error updating user:', error);
         return false;
       }
     }
@@ -256,10 +284,10 @@ export const getAdminUsers = async (): Promise<User[]> => {
   }
 };
 
-export const addAdminUser = async (email: string): Promise<boolean> => {
+export const addAdminUser = async (email: string, isSuperAdmin: boolean = false): Promise<boolean> => {
   try {
     // First ensure the user exists
-    await createUser(email, true);
+    await createUser(email, true, isSuperAdmin);
 
     // Since createUser will either create a new admin user or update an existing one to be admin,
     // we just need to verify it worked
@@ -271,11 +299,32 @@ export const addAdminUser = async (email: string): Promise<boolean> => {
   }
 };
 
+export const addSuperAdmin = async (email: string): Promise<boolean> => {
+  try {
+    // First ensure the user exists
+    await createUser(email, true, true);
+
+    // Since createUser will either create a new admin user or update an existing one to be admin,
+    // we just need to verify it worked
+    const user = await getUserByEmail(email);
+    return user?.is_super_admin === true;
+  } catch (error) {
+    console.error('Exception adding super admin user:', error);
+    return false;
+  }
+};
+
 export const removeAdminPrivilege = async (email: string): Promise<boolean> => {
   try {
+    // First check if this is the last super admin - don't allow removing
+    if (await isLastSuperAdmin(email)) {
+      console.error('Cannot remove the last super admin');
+      return false;
+    }
+
     const { error } = await supabase
       .from('users')
-      .update({ is_admin: false })
+      .update({ is_admin: false, is_super_admin: false })
       .eq('email', email);
 
     if (error) {
@@ -286,6 +335,56 @@ export const removeAdminPrivilege = async (email: string): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Exception removing admin privilege:', error);
+    return false;
+  }
+};
+
+// Helper function to check if the user is the last super admin
+export const isLastSuperAdmin = async (email: string): Promise<boolean> => {
+  try {
+    // First check if the user is a super admin
+    const user = await getUserByEmail(email);
+    if (!user?.is_super_admin) {
+      return false;
+    }
+
+    // Check how many super admins exist
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('is_super_admin', true);
+
+    if (error) {
+      console.error('Error checking super admin count:', error);
+      return true; // Default to true to be safe
+    }
+
+    return data.length <= 1;
+  } catch (error) {
+    console.error('Exception checking super admin status:', error);
+    return true; // Default to true to be safe
+  }
+};
+
+// Add functions to verify password
+export const verifyUserPassword = async (email: string, password: string): Promise<boolean> => {
+  try {
+    // Get user with password
+    const { data, error } = await supabase
+      .from('users')
+      .select('password')
+      .eq('email', email)
+      .single();
+
+    if (error || !data || !data.password) {
+      return false;
+    }
+
+    // Import bcrypt inside function to avoid issues with SSR
+    const bcrypt = require('bcryptjs');
+    return await bcrypt.compare(password, data.password);
+  } catch (error) {
+    console.error('Exception verifying password:', error);
     return false;
   }
 };

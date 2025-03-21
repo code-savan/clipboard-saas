@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Shield } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabase';
-import { addAdminUser } from '@/lib/db';
 import { validateEmail } from '@/lib/utils';
+import bcrypt from 'bcryptjs';
 
 export default function AdminSetup() {
   const [email, setEmail] = useState('');
@@ -44,43 +44,58 @@ export default function AdminSetup() {
     setLoading(true);
 
     try {
-      // Check if any admin users already exist
-      const { data: existingAdmins, error: adminsError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('is_admin', true)
-        .limit(1);
+      // Check if there are existing admin users
+      const { data: admins, error: adminsError } = await supabase
+        .from('admins')
+        .select('id');
 
       if (adminsError) {
-        throw new Error('Failed to check existing admins');
-      }
-
-      // Only proceed if there are no admin users yet
-      if (existingAdmins && existingAdmins.length > 0) {
+        console.error('Failed to check existing admins:', adminsError);
+        // Continue with setup even if we can't check for existing admins due to permissions
+        // This allows first-time setup to work even with anonymous access
+      } else if (admins && admins.length > 0) {
+        setError('Admin users already exist. Please log in instead.');
         toast({
-          title: "Setup already completed",
-          description: "Admin users already exist. Please log in instead.",
-          variant: "destructive",
+          title: 'Setup Failed',
+          description: 'Admin users already exist. Please log in instead.',
+          variant: 'destructive',
         });
+        setLoading(false);
         router.push('/admin/login');
         return;
       }
 
-      // Register the user with Supabase auth
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-      if (signUpError) {
-        throw new Error(signUpError.message);
+      // Create admin account in the admins table
+      const { error: createError } = await supabase
+        .from('admins')
+        .insert([
+          {
+            email,
+            password: hashedPassword,
+            is_super: true
+          }
+        ]);
+
+      if (createError) {
+        throw new Error('Failed to create admin user: ' + createError.message);
       }
 
-      // Make the user an admin in our database
-      const success = await addAdminUser(email);
+      // Also register with Supabase auth for additional security if needed
+      try {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-      if (!success) {
-        throw new Error('Failed to set admin privileges');
+        if (signUpError) {
+          console.warn('Note: Supabase auth signup failed, but admin was created in database:', signUpError.message);
+        }
+      } catch (authError) {
+        console.warn('Supabase auth error, but continuing with database admin:', authError);
       }
 
       toast({

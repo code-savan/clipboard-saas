@@ -35,25 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
-      if (session?.user) {
-        // Save email to emails table and ensure user exists
-        if (session.user.email) {
+      if (session && !user && session.user.email) {
+        try {
+          // Save email to database
           try {
-            const emailResult = await saveEmail(session.user.email, 'login');
-            if (!emailResult) {
-              console.warn('Failed to save email during session initialization');
-            }
-
-            const userResult = await createUser(session.user.email);
-            if (!userResult) {
-              console.warn('Failed to create user during session initialization');
-            }
-
-            const userDetails = await getUserByEmail(session.user.email);
-            setIsAdmin(userDetails?.is_admin ?? false);
-          } catch (error) {
-            console.error('Error during session initialization:', error);
+            await saveEmail(session.user.email, 'auth');
+          } catch (emailError) {
+            console.warn('Failed to save email during session init:', emailError);
           }
+
+          // Fetch user details
+          const userDetails = await getUserByEmail(session.user.email);
+
+          // Update state with session details
+          setUser(session.user);
+          setIsAdmin(userDetails?.is_admin || false);
+        } catch (error) {
+          console.error('Error fetching user details:', error);
         }
       }
 

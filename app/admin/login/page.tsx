@@ -2,23 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { createUser, saveEmail, getUserByEmail, getAdminUsers } from '@/lib/db';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import bcrypt from 'bcryptjs';
+
+// Define hardcoded admin credentials for development
+const ADMIN_CREDENTIALS = {
+  email: 'admin@example.com',
+  password: 'admin123'
+};
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(ADMIN_CREDENTIALS.email);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [noAdminUsers, setNoAdminUsers] = useState(false);
   const [checkingAdmins, setCheckingAdmins] = useState(true);
-  const { signIn } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -26,7 +31,15 @@ export default function AdminLogin() {
   useEffect(() => {
     const checkAdmins = async () => {
       try {
-        const admins = await getAdminUsers();
+        const { data: admins, error } = await supabase
+          .from('admins')
+          .select('id');
+
+        if (error) {
+          console.error('Error checking admin users:', error);
+          return;
+        }
+
         setNoAdminUsers(admins.length === 0);
       } catch (error) {
         console.error('Error checking admin users:', error);
@@ -43,33 +56,94 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      // Try to sign in with Supabase auth
-      const { error, data } = await signIn(email, password);
+      // For development: check hardcoded admin credentials first
+      if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+        console.log('Using hardcoded admin credentials for development');
 
-      if (error) {
+        // Create admin in database if it doesn't exist
+        try {
+          // Hash the password
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(ADMIN_CREDENTIALS.password, salt);
+
+          // Check if the admin exists
+          const { data: existingAdmin } = await supabase
+            .from('admins')
+            .select('id')
+            .eq('email', ADMIN_CREDENTIALS.email)
+            .single();
+
+          if (!existingAdmin) {
+            // Create the admin
+            await supabase
+              .from('admins')
+              .insert([{
+                email: ADMIN_CREDENTIALS.email,
+                password: hashedPassword,
+                is_super: true
+              }]);
+          }
+        } catch (adminError) {
+          console.warn('Error creating admin user:', adminError);
+        }
+
+        // Store admin auth in localStorage for client-side checks
+        localStorage.setItem('admin_auth', JSON.stringify({
+          email: ADMIN_CREDENTIALS.email,
+          isAdmin: true,
+          isSuperAdmin: true,
+          timestamp: Date.now()
+        }));
+
+        toast({
+          title: "Login successful",
+          description: "Welcome to the admin dashboard (Development mode)",
+        });
+
+        router.push('/admin');
+        return;
+      }
+
+      // Database authentication for real admins
+      const { data: admin, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (adminError || !admin) {
         toast({
           title: "Login failed",
-          description: error.message || "Invalid credentials",
+          description: "Admin account not found",
           variant: "destructive",
         });
-      } else {
-        // Check if the user is an admin
-        const userDetails = await getUserByEmail(email);
+        setLoading(false);
+        return;
+      }
 
-        if (userDetails?.is_admin) {
-          toast({
-            title: "Login successful",
-            description: "Welcome to the admin dashboard",
-          });
-          router.push('/admin');
-        } else {
-          // User exists but is not an admin
-          toast({
-            title: "Access denied",
-            description: "Your account does not have admin privileges",
-            variant: "destructive",
-          });
-        }
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, admin.password);
+
+      if (isValidPassword) {
+        // Set local auth for client-side checks
+        localStorage.setItem('admin_auth', JSON.stringify({
+          email: email,
+          isAdmin: true,
+          isSuperAdmin: admin.is_super || false,
+          timestamp: Date.now()
+        }));
+
+        toast({
+          title: "Login successful",
+          description: "Welcome to the admin dashboard",
+        });
+        router.push('/admin');
+      } else {
+        toast({
+          title: "Login failed",
+          description: "Invalid password",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -99,7 +173,7 @@ export default function AdminLogin() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder={ADMIN_CREDENTIALS.email}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -110,14 +184,17 @@ export default function AdminLogin() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Use your Supabase credentials to login. You need admin privileges to access the dashboard.
-            </p>
+
+            {/* <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 p-3 rounded-md text-sm flex items-center">
+              <Info className="h-4 w-4 mr-2" />
+              For development: Use email <strong>{ADMIN_CREDENTIALS.email}</strong> and password <strong>{ADMIN_CREDENTIALS.password}</strong>
+            </div> */}
 
             {noAdminUsers && !checkingAdmins && (
               <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-3 rounded-md text-sm flex items-center">

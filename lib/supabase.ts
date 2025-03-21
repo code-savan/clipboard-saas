@@ -15,15 +15,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables, using fallbacks for development');
 }
 
-export const supabase = createClient(actualUrl, actualKey, {
+// Client options with error handling and auto retry
+const supabaseOptions = {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
   },
   // Add global error handling for development
   global: {
-    fetch: (...args) => {
-      return fetch(...args).catch(err => {
+    fetch: (url: RequestInfo | URL, options?: RequestInit) => {
+      return fetch(url, options).catch(err => {
         console.error('Supabase request error:', err);
         // Return a mock response for development
         return new Response(JSON.stringify({ data: [], error: null }), {
@@ -32,9 +33,12 @@ export const supabase = createClient(actualUrl, actualKey, {
       });
     }
   }
-});
+};
 
-// Add convenience method for public data access
+// Main Supabase client
+export const supabase = createClient(actualUrl, actualKey, supabaseOptions);
+
+// Public client specifically for unauthenticated operations
 export const publicSupabase = supabase;
 
 export type Database = {
@@ -75,11 +79,15 @@ export type Database = {
           id: string;
           email: string;
           is_admin: boolean;
+          is_super_admin?: boolean;
+          password?: string;
           created_at: string;
         };
         Insert: {
           email: string;
           is_admin?: boolean;
+          is_super_admin?: boolean;
+          password?: string;
           created_at?: string;
         };
       };

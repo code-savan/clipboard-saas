@@ -7,14 +7,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255), -- Store bcrypt hashed password
   is_admin BOOLEAN DEFAULT FALSE,
   is_super_admin BOOLEAN DEFAULT FALSE,
-  password VARCHAR(255), -- Adding password field that can be NULL
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index on email for faster lookups
+-- Create indexes for users
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_admin ON users(is_admin);
 
@@ -22,11 +22,11 @@ CREATE INDEX IF NOT EXISTS idx_users_admin ON users(is_admin);
 CREATE TABLE IF NOT EXISTS emails (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
-  source VARCHAR(50) NOT NULL, -- Tracks where the email was collected (hero, login, footer, etc.)
+  source VARCHAR(50) NOT NULL, -- Tracks where the email was collected
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index on email for faster lookups
+-- Create indexes for emails
 CREATE INDEX IF NOT EXISTS idx_emails_email ON emails(email);
 CREATE INDEX IF NOT EXISTS idx_emails_source ON emails(source);
 
@@ -167,19 +167,6 @@ CREATE POLICY testimonials_update_policy ON testimonials
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_admin = TRUE)
   );
 
--- Initial seed data for testimonials
-INSERT INTO testimonials (name, role, company, quote, stars, is_featured)
-VALUES
-  ('Sarah Johnson', 'Software Developer', 'TechCorp',
-   'ClibBoard has transformed my workflow. I save at least an hour each day by not having to re-copy things.',
-   5, TRUE),
-  ('Mark Williams', 'Content Creator', 'CreativeStudio',
-   'As someone who constantly copies snippets for my content, this tool is absolutely essential.',
-   5, TRUE),
-  ('Elena Rodriguez', 'UX Designer', 'DesignHub',
-   'The image handling is amazing! I can keep all my design references organized without effort.',
-   5, TRUE);
-
 -- Forum trigger to update likes count
 CREATE OR REPLACE FUNCTION update_forum_post_likes_count()
 RETURNS TRIGGER AS $$
@@ -260,6 +247,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Initial seed data for testimonials
+INSERT INTO testimonials (name, role, company, quote, stars, is_featured)
+VALUES
+  ('Sarah Johnson', 'Software Developer', 'TechCorp',
+   'ClibBoard has transformed my workflow. I save at least an hour each day by not having to re-copy things.',
+   5, TRUE),
+  ('Mark Williams', 'Content Creator', 'CreativeStudio',
+   'As someone who constantly copies snippets for my content, this tool is absolutely essential.',
+   5, TRUE),
+  ('Elena Rodriguez', 'UX Designer', 'DesignHub',
+   'The image handling is amazing! I can keep all my design references organized without effort.',
+   5, TRUE);
+
+-- Comment out forum post seeding for fresh start
+/*
 -- Initial seed data for forum posts
 INSERT INTO forum_posts (name, email, message, likes)
 VALUES
@@ -273,7 +275,7 @@ VALUES
    'The double-tap Tab shortcut is genius! So convenient. One suggestion: it would be nice to have keyboard shortcuts for navigating through clipboard items too.',
    0);
 
--- Add likes to the first forum post (John Smith's post)
+-- Add sample likes
 WITH john_post AS (
   SELECT id FROM forum_posts WHERE email = 'john@example.com' LIMIT 1
 )
@@ -281,30 +283,5 @@ INSERT INTO forum_post_likes (post_id, user_email)
 SELECT
   (SELECT id FROM john_post),
   email
-FROM unnest(ARRAY['user1@example.com', 'user2@example.com', 'user3@example.com',
-             'user4@example.com', 'user5@example.com', 'user6@example.com',
-             'user7@example.com', 'user8@example.com', 'user9@example.com',
-             'user10@example.com', 'user11@example.com', 'user12@example.com']) AS email;
-
--- Add likes to the second forum post (Sarah Johnson's post)
-WITH sarah_post AS (
-  SELECT id FROM forum_posts WHERE email = 'sarah@example.com' LIMIT 1
-)
-INSERT INTO forum_post_likes (post_id, user_email)
-SELECT
-  (SELECT id FROM sarah_post),
-  email
-FROM unnest(ARRAY['user1@example.com', 'user2@example.com', 'user3@example.com',
-             'user4@example.com', 'user5@example.com', 'user6@example.com',
-             'user7@example.com', 'user8@example.com']) AS email;
-
--- Add likes to the third forum post (Michael Chen's post)
-WITH michael_post AS (
-  SELECT id FROM forum_posts WHERE email = 'michael@example.com' LIMIT 1
-)
-INSERT INTO forum_post_likes (post_id, user_email)
-SELECT
-  (SELECT id FROM michael_post),
-  email
-FROM unnest(ARRAY['user1@example.com', 'user2@example.com', 'user3@example.com',
-             'user4@example.com', 'user5@example.com']) AS email;
+FROM unnest(ARRAY['user1@example.com', 'user2@example.com', 'user3@example.com']) AS email;
+*/

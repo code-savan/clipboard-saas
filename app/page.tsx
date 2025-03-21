@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { ModeToggle } from '@/components/ModeToggle';
 import { Navbar } from '@/components/Navbar';
 import { Element } from 'react-scroll';
+import Image from 'next/image';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -221,10 +222,12 @@ export default function Home() {
                 className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
               >
                 <div className="p-2">
-                  <img
+                  <Image
                     src="https://placehold.co/600x400/5046e5/FFFFFF/png?text=ClipBoard+Demo"
                     alt="Instant ClipBoard Demo"
                     className="rounded-lg w-full"
+                    width={600}
+                    height={400}
                   />
                 </div>
               </motion.div>
