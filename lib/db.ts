@@ -143,6 +143,8 @@ export const likeForumPost = async (id: string): Promise<ForumPost | null> => {
 };
 
 // User management
+// This function should only be called when a user explicitly requests access to the system
+// (e.g. from the landing page form) - not from forum posts or other email collections
 export const createUser = async (
   email: string,
   isAdmin: boolean = false,

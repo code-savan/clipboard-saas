@@ -42,7 +42,7 @@ export default function Forum() {
         setSubscriberCount(emails.length);
 
         // Check if we have stored user info
-        const storedEmail = localStorage.getItem('userEmail');
+        const storedEmail = localStorage.getItem('forumEmail');
         if (storedEmail) {
           setEmail(storedEmail);
         }
@@ -105,7 +105,7 @@ export default function Forum() {
 
         // Store email for future use
         if (email.trim()) {
-          localStorage.setItem('userEmail', email);
+          localStorage.setItem('forumEmail', email);
         }
 
         toast({

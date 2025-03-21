@@ -37,14 +37,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session && !user && session.user.email) {
         try {
-          // Save email to database
+          // Save email to database for marketing, but don't create user
           try {
             await saveEmail(session.user.email, 'auth');
           } catch (emailError) {
             console.warn('Failed to save email during session init:', emailError);
           }
 
-          // Fetch user details
+          // Fetch user details if they exist
           const userDetails = await getUserByEmail(session.user.email);
 
           // Update state with session details
@@ -64,22 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Save email to emails table and ensure user exists
+          // Save email to emails table for marketing
           if (session.user.email) {
             // Only save on sign in or token refresh events
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               try {
-                const emailResult = await saveEmail(session.user.email, 'login');
-                if (!emailResult) {
-                  console.warn('Failed to save email during auth state change');
-                }
-
-                const userResult = await createUser(session.user.email);
-                if (!userResult) {
-                  console.warn('Failed to create user during auth state change');
-                }
+                await saveEmail(session.user.email, 'login');
               } catch (error) {
-                console.error('Error during auth state change:', error);
+                console.error('Error saving email during auth state change:', error);
               }
             }
           }
@@ -114,11 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await supabase.auth.signInWithPassword({ email, password });
 
-        // If sign-in is successful, save the email to emails table
+        // If sign-in is successful, save the email to emails table for marketing
         if (result.data?.user) {
           try {
             await saveEmail(email, 'signin');
-            await createUser(email);
+            // Don't create a user here, as they should already exist if they're signing in
 
             // Check if user is admin after sign-in
             const userDetails = await getUserByEmail(email);
@@ -129,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               };
             }
           } catch (error) {
-            console.error('Error saving user data after signin:', error);
+            console.error('Error saving email after signin:', error);
             // Continue anyway since sign-in succeeded
           }
         }
@@ -147,10 +139,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await supabase.auth.signUp({ email, password });
 
-        // If sign-up is successful, save the email to emails table
+        // If sign-up is successful, create a user account (this is the explicit request for access)
         if (result.data?.user) {
           try {
+            // Save email for marketing
             await saveEmail(email, 'signup');
+
+            // Create user - this is only place we should create users since signUp
+            // represents an explicit request for access
             await createUser(email);
           } catch (error) {
             console.error('Error saving user data after signup:', error);
