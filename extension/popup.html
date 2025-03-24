@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instant ClibBoard</title>
+  <link rel="stylesheet" href="popup.css">
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 222.2 84% 4.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 222.2 84% 4.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 222.2 84% 4.9%;
+      --primary: 221.2 83.2% 53.3%;
+      --primary-foreground: 210 40% 98%;
+      --secondary: 210 40% 96.1%;
+      --secondary-foreground: 222.2 47.4% 11.2%;
+      --muted: 210 40% 96.1%;
+      --muted-foreground: 215.4 16.3% 46.9%;
+      --accent: 210 40% 96.1%;
+      --accent-foreground: 222.2 47.4% 11.2%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 214.3 31.8% 91.4%;
+      --input: 214.3 31.8% 91.4%;
+      --ring: 221.2 83.2% 53.3%;
+      --radius: 0.5rem;
+      --gradient-start: rgb(16 185 129);
+      --gradient-end: rgb(13 148 136);
+    }
+
+    [data-theme="dark"] {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+      --card: 222.2 84% 4.9%;
+      --card-foreground: 210 40% 98%;
+      --popover: 222.2 84% 4.9%;
+      --popover-foreground: 210 40% 98%;
+      --primary: 217.2 91.2% 59.8%;
+      --primary-foreground: 222.2 47.4% 11.2%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 217.2 32.6% 17.5%;
+      --accent-foreground: 210 40% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 224.3 76.3% 48%;
+      --gradient-start: rgb(99 102 241);
+      --gradient-end: rgb(79 70 229);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      transition: background-color 0.3s, color 0.3s;
+      overflow: hidden;
+    }
+
+    .clipboard-widget {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-radius: var(--radius);
+      background-color: hsl(var(--background));
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid hsl(var(--border));
+      background-color: hsl(var(--card));
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+    }
+
+    .header-title {
+      font-weight: 600;
+      font-size: 18px;
+      color: hsl(var(--foreground));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .icon-button {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      border: none;
+      background-color: transparent;
+      cursor: pointer;
+      color: hsl(var(--foreground));
+      transition: background-color 0.3s;
+    }
+
+    .icon-button:hover {
+      background-color: hsl(var(--secondary));
+    }
+
+    .delete-button {
+      background-color: hsl(var(--destructive) / 0.1);
+      color: hsl(var(--destructive));
+    }
+
+    .delete-button:hover {
+      background-color: hsl(var(--destructive) / 0.2);
+    }
+
+    .search-container {
+      padding: 12px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 36px;
+      padding: 8px 8px 8px 36px;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .search-input:focus {
+      border-color: hsl(var(--primary));
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 24px;
+      top: 20px;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .items-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px;
+    }
+
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    .clipboard-item {
+      position: relative;
+      padding: 12px;
+      border-radius: var(--radius);
+      background-color: hsl(var(--card));
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .clipboard-item:hover {
+      border-color: hsl(var(--border));
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .item-content {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .item-type {
+      padding: 6px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .item-type.text {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: rgb(16, 185, 129);
+    }
+
+    .item-type.link {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: rgb(59, 130, 246);
+    }
+
+    .item-type.image {
+      background-color: rgba(139, 92, 246, 0.1);
+      color: rgb(139, 92, 246);
+    }
+
+    [data-theme="dark"] .item-type.text {
+      background-color: rgba(16, 185, 129, 0.2);
+    }
+
+    [data-theme="dark"] .item-type.link {
+      background-color: rgba(59, 130, 246, 0.2);
+    }
+
+    [data-theme="dark"] .item-type.image {
+      background-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .item-text {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .text-content {
+      font-size: 14px;
+      color: hsl(var(--foreground));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+    }
+
+    .link-content {
+      font-size: 14px;
+      color: rgb(59, 130, 246);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-expanded .text-content {
+      -webkit-line-clamp: initial;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .item-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .clipboard-item:hover .item-actions,
+    .item-expanded .item-actions {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .action-button {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .pin-button {
+      background-color: hsl(var(--secondary) / 0.8);
+      color: hsl(var(--secondary-foreground));
+    }
+
+    .pin-button.pinned {
+      background-color: rgb(16, 185, 129);
+      color: white;
+    }
+
+    .open-button {
+      background-color: rgb(59, 130, 246);
+      color: white;
+    }
+
+    .download-button {
+      background-color: rgb(139, 92, 246);
+      color: white;
+    }
+
+    .expand-button {
+      background-color: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+    }
+
+    .select-button {
+      background-color: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+    }
+
+    .select-button.selected {
+      background-color: rgb(251, 191, 36);
+      color: white;
+    }
+
+    .delete-item-button {
+      background-color: rgb(239, 68, 68, 0.1);
+      color: rgb(239, 68, 68);
+    }
+
+    .item-preview {
+      margin-top: 8px;
+      max-height: 96px;
+      width: 100%;
+      object-fit: cover;
+      border-radius: var(--radius);
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 300px;
+      text-align: center;
+      padding: 0 16px;
+    }
+
+    .empty-icon-container {
+      background-color: hsl(var(--secondary));
+      width: 48px;
+      height: 48px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .empty-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      margin-bottom: 4px;
+    }
+
+    .empty-description {
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
+      max-width: 250px;
+      margin-bottom: 16px;
+    }
+
+    .tips-container {
+      padding: 10px 16px;
+      border-top: 1px solid hsl(var(--border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: hsl(var(--card));
+    }
+
+    .tip-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      background-color: rgba(99, 102, 241, 0.1);
+      color: rgb(99, 102, 241);
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .tip-text {
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="clipboard-widget">
+    <div class="header">
+      <div class="header-title">
+        <span>Clipboard History</span>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggle" class="icon-button" title="Toggle theme">
+          <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+        <button id="closeButton" class="icon-button" title="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-container">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input id="searchInput" type="text" class="search-input" placeholder="Search clipboard items...">
+    </div>
+
+    <div class="items-container">
+      <div id="itemsList" class="items-list">
+        <!-- Items will be added here dynamically -->
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+        </div>
+        <h4 class="empty-title">Clipboard is empty</h4>
+        <p class="empty-description">Copy some text or an image to see it appear here. Your clipboard history will be stored for 48 hours.</p>
+      </div>
+
+      <div id="noResults" class="empty-state" style="display: none;">
+        <div class="empty-icon-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <h4 class="empty-title">No matches found</h4>
+        <p class="empty-description">No clipboard items match your search. Try different keywords.</p>
+      </div>
+    </div>
+
+    <div class="tips-container">
+      <div class="tip-icon">💡</div>
+      <p id="tipText" class="tip-text">Click on any item to copy it to clipboard instantly</p>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

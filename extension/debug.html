@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clipboard Menu</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      margin-bottom: 30px;
+      color: #4f46e5;
+    }
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      color: #4f46e5;
+    }
+    .card {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    pre {
+      background: #f1f5f9;
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #4338ca;
+    }
+    .item {
+      border-left: 3px solid #10b981;
+      padding-left: 15px;
+      margin-bottom: 15px;
+    }
+    .item.pinned {
+      border-left-color: #f59e0b;
+      background-color: rgba(245, 158, 11, 0.1);
+    }
+    .item-content {
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+    .item-meta {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .label {
+      display: inline-block;
+      background: #e4e4e7;
+      color: #18181b;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 12px;
+      margin-right: 5px;
+    }
+    .label.text { background: rgba(16, 185, 129, 0.2); color: #064e3b; }
+    .label.link { background: rgba(59, 130, 246, 0.2); color: #1e3a8a; }
+    .label.image { background: rgba(139, 92, 246, 0.2); color: #4c1d95; }
+  </style>
+</head>
+<body>
+  <h1>Clipboard Extension Menu</h1>
+
+  <div class="section">
+    <h2>Status</h2>
+    <div class="card">
+      <div id="status">Loading...</div>
+    </div>
+
+    <button id="refresh">Refresh Data</button>
+    <button id="copyTest">Copy Test Text</button>
+    <button id="clearItems">Clear All Items</button>
+  </div>
+
+  <div class="section">
+    <h2>Storage</h2>
+    <div class="card">
+      <h3>Items (<span id="itemCount">0</span>)</h3>
+      <div id="items">Loading...</div>
+    </div>
+
+    <div class="card">
+      <h3>Settings</h3>
+      <pre id="settings">Loading...</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Clipboard API Test</h2>
+    <div class="card">
+      <div id="clipboardTest">
+        <p>Click the button below to test reading from clipboard:</p>
+        <button id="readClipboard">Read Clipboard</button>
+        <div id="clipboardContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="debug.js"></script>
+</body>
+</html>

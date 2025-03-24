@@ -22,9 +22,9 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-2">
           {/* <Clipboard className="h-6 w-6 text-indigo-600 dark:text-indigo-500" /> */}
           <div>
-            {resolvedTheme === 'dark' ? (
+            {resolvedTheme === 'light' ? (
               <Image
-                src="/logo-dark.png"
+                src="/logo-light.png"
                 alt="Instant ClipBoard Logo"
                 className="h-7 w-7"
                 width={28}
@@ -32,7 +32,7 @@ export function Navbar() {
               />
             ) : (
               <Image
-                src="/logo-light.png"
+                src="/logo-dark.png"
                 alt="Instant ClipBoard Logo"
                 className="h-7 w-7"
                 width={28}

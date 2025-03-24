@@ -380,7 +380,7 @@ export default function AdminDashboard() {
         <div className="p-6">
           <h2 className="text-lg font-semibold">Instant ClipBoard</h2>
           <p className="text-sm text-muted-foreground">Admin Dashboard</p>
-        </div>
+            </div>
         <div className="flex-1 space-y-1 p-2">
           <Button
             variant={currentTab === 'users' ? 'secondary' : 'ghost'}
@@ -422,21 +422,21 @@ export default function AdminDashboard() {
             <Shield className="mr-2 h-4 w-4" />
             Admins
           </Button>
-        </div>
+                      </div>
         <div className="border-t p-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm font-medium">{currentAdmin?.email}</p>
               {currentAdmin?.isSuperAdmin && (
                 <p className="text-xs text-muted-foreground">Super Admin</p>
-              )}
-            </div>
+                  )}
+                </div>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
-      </div>
+                </div>
 
       {/* Mobile Header */}
       <div className="md:hidden border-b bg-background">
@@ -449,9 +449,9 @@ export default function AdminDashboard() {
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
             </Button>
-          </div>
-        </div>
-      </div>
+                      </div>
+                    </div>
+                  </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
@@ -512,7 +512,7 @@ export default function AdminDashboard() {
                             </div>
                           ))}
                         </div>
-                      </div>
+                    </div>
                     )}
                   </CardContent>
                 </Card>
@@ -542,7 +542,7 @@ export default function AdminDashboard() {
                                     <Badge variant="outline" className="text-rose-500">❤️ {post.likes}</Badge>
                                     <span>•</span>
                                     <span>{new Date(post.created_at || '').toLocaleString()}</span>
-                                  </div>
+                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -551,8 +551,8 @@ export default function AdminDashboard() {
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
-                                </div>
-                              </div>
+                  </div>
+                </div>
                             </CardHeader>
                             <CardContent>
                               <p className="text-sm">{post.message}</p>
@@ -617,8 +617,8 @@ export default function AdminDashboard() {
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
-                                </div>
-                              </div>
+                    </div>
+                  </div>
                             </CardHeader>
                             <CardContent>
                               <p className="mb-4 text-sm italic">{testimonial.quote}</p>
@@ -683,7 +683,7 @@ export default function AdminDashboard() {
                                   <Badge variant="outline">Admin</Badge>
                                 )}
                               </div>
-                              <div>
+                            <div>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -694,7 +694,7 @@ export default function AdminDashboard() {
                                   <X className="h-3 w-3 mr-1" />
                                   Remove
                                 </Button>
-                              </div>
+                            </div>
                             </div>
                           ))}
                         </div>
@@ -716,8 +716,8 @@ export default function AdminDashboard() {
                                   />
                                   {emailError && (
                                     <p className="text-destructive text-sm mt-1">{emailError}</p>
-                                  )}
-                                </div>
+                    )}
+                  </div>
                                 <Button type="submit" disabled={isAddingAdmin}>
                                   {isAddingAdmin ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -726,7 +726,7 @@ export default function AdminDashboard() {
                                   )}
                                   Add Admin
                                 </Button>
-                              </div>
+                  </div>
                               <CardDescription>
                                 New admin will receive a temporary password that they should change immediately.
                               </CardDescription>
@@ -734,12 +734,12 @@ export default function AdminDashboard() {
                           </CardContent>
                         </Card>
                       )}
-                    </div>
+                </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </div>
-          </Tabs>
+            </Tabs>
         </div>
       </div>
     </div>
