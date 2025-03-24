@@ -14,6 +14,7 @@ import { ModeToggle } from '@/components/ModeToggle';
 import { Navbar } from '@/components/Navbar';
 import { Element } from 'react-scroll';
 import Image from 'next/image';
+import Footer from '@/components/Footer';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -47,7 +48,7 @@ export default function Home() {
 
     try {
       // Save to localStorage for widget access
-      localStorage.setItem('userEmail', email);
+    localStorage.setItem('userEmail', email);
 
       // First try to save the email
       const emailResult = await saveEmail(email, 'hero');
@@ -63,10 +64,10 @@ export default function Home() {
         console.warn('User creation might have failed, but continuing...');
       }
 
-      setIsWidgetUnlocked(true);
-      toast({
-        title: 'Welcome!',
-        description: 'Your clipboard organizer is now active.',
+    setIsWidgetUnlocked(true);
+    toast({
+      title: 'Welcome!',
+      description: 'Your clipboard organizer is now active.',
       });
     } catch (error) {
       console.error('Error during submission:', error);
@@ -132,13 +133,13 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar />
+          <Navbar />
 
-      {/* Hero Section */}
+          {/* Hero Section */}
       <section className="relative py-20 md:py-32 overflow-hidden bg-gradient-to-b from-white to-slate-50 dark:from-slate-950 dark:to-slate-900">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center">
-            <div className="md:w-1/2 md:pr-12 mb-10 md:mb-0">
+              <div className="flex flex-col md:flex-row items-center">
+                <div className="md:w-1/2 md:pr-12 mb-10 md:mb-0">
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -166,7 +167,7 @@ export default function Home() {
                 >
                   <Button className="w-full md:w-auto" size="lg">
                     <Check className="mr-2 h-4 w-4" />
-                    Activated with {email}
+                    Accessed with {email}
                   </Button>
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                     Double-tap Tab to open the clipboard history panel ↓
@@ -198,11 +199,11 @@ export default function Home() {
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Activating...
+                          Accessing...
                         </>
                       ) : (
                         <>
-                          Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                      Get Started <ArrowRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -212,9 +213,9 @@ export default function Home() {
                   </p>
                 </motion.form>
               )}
-            </div>
+                </div>
 
-            <div className="md:w-1/2">
+                <div className="md:w-1/2">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -236,11 +237,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
+          {/* Features Section */}
       <Element name="features">
         <section className="py-20 bg-white dark:bg-slate-900">
-          <div className="container mx-auto px-4">
-            <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="container mx-auto px-4">
+              <div className="text-center max-w-3xl mx-auto mb-16">
               <motion.h2
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -259,7 +260,7 @@ export default function Home() {
               >
                 Designed for professionals who rely on efficient data transfer between applications
               </motion.p>
-            </div>
+              </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
@@ -317,8 +318,8 @@ export default function Home() {
       {/* How It Works Section */}
       <Element name="how-it-works">
         <section className="py-20 bg-slate-50 dark:bg-slate-800">
-          <div className="container mx-auto px-4">
-            <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="container mx-auto px-4">
+              <div className="text-center max-w-3xl mx-auto mb-16">
               <motion.h2
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -337,7 +338,7 @@ export default function Home() {
               >
                 Get started with Instant ClipBoard in three simple steps
               </motion.p>
-            </div>
+              </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               {[
@@ -382,8 +383,8 @@ export default function Home() {
                   </div>
                 </motion.div>
               ))}
-            </div>
-          </div>
+                    </div>
+                  </div>
         </section>
       </Element>
 
@@ -448,7 +449,7 @@ export default function Home() {
               >
                 Don&apos;t just take our word for it
               </motion.p>
-            </div>
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {[
@@ -494,17 +495,17 @@ export default function Home() {
                       <p className="text-sm text-slate-600 dark:text-slate-300">{testimonial.role}</p>
                     </div>
                   </div>
-                </motion.div>
+                  </motion.div>
               ))}
             </div>
           </div>
         </section>
       </Element>
 
-      {/* CTA Section */}
+          {/* CTA Section */}
       <section className="py-20 bg-indigo-600 dark:bg-indigo-900">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-3xl mx-auto">
+            <div className="container mx-auto px-4">
+              <div className="text-center max-w-3xl mx-auto">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -533,69 +534,41 @@ export default function Home() {
                 onSubmit={handleSubmit}
                 className="max-w-md mx-auto flex flex-col sm:flex-row gap-3 mb-8"
               >
-                <div className="flex-grow">
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setError('');
-                    }}
-                    className={`h-12 text-base bg-white text-slate-900 ${error ? 'border-red-300' : 'border-white'}`}
-                  />
-                  {error && (
-                    <p className="text-sm text-red-200 mt-1 text-left">{error}</p>
-                  )}
-                </div>
-                <Button type="submit" className="h-12 px-6 bg-white hover:bg-indigo-50 text-indigo-600">
-                  Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                  <div className="flex-grow">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setError('');
+                      }}
+                      className={`h-12 text-base bg-white text-slate-900 ${error ? 'border-red-300' : 'border-white'}`}
+                    />
+                    {error && (
+                      <p className="text-sm text-red-200 mt-1 text-left">{error}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="h-12 px-6 bg-white hover:bg-indigo-50 text-indigo-600">
+                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
               </motion.form>
             )}
 
-            <div className="flex justify-center space-x-6">
-              <div className="flex items-center text-indigo-100">
-                <Check className="h-5 w-5 mr-2" /> Free to start
-              </div>
-              <div className="flex items-center text-indigo-100">
-                <Check className="h-5 w-5 mr-2" /> No credit card required
+                <div className="flex justify-center space-x-6">
+                  <div className="flex items-center text-indigo-100">
+                    <Check className="h-5 w-5 mr-2" /> Free to start
+                  </div>
+                  <div className="flex items-center text-indigo-100">
+                    <Check className="h-5 w-5 mr-2" /> No credit card required
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 bg-slate-900 text-slate-300">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-6 md:mb-0">
-              <Clipboard className="h-6 w-6 text-indigo-400 mr-2" />
-              <span className="text-xl font-semibold text-white">Instant ClipBoard</span>
-            </div>
-
-            <div className="flex gap-8">
-              <Link href="/" className="hover:text-white transition-colors">
-                Home
-              </Link>
-              <Link href="/forum" className="hover:text-white transition-colors">
-                Forum
-              </Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-white transition-colors">
-                Terms
-              </Link>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-400">
-            © {new Date().getFullYear()} Instant ClipBoard. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {isWidgetUnlocked && <ClipboardWidget />}
     </div>

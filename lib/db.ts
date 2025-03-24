@@ -79,8 +79,8 @@ export const getEmails = async (): Promise<EmailSubscription[]> => {
 // Forum posts
 export const saveForumPost = async (name: string, email: string | null, message: string): Promise<ForumPost | null> => {
   try {
-    // If there's an email, save it to the emails table only (no user creation)
-    // This only collects the email for marketing purposes, but doesn't create a user account
+    // If there's an email, save it to the emails table with 'forum' source
+    // This will not create a user account due to the trigger logic
     if (email) {
       await saveEmail(email, 'forum');
     }
@@ -145,12 +145,7 @@ export const likeForumPost = async (id: string): Promise<ForumPost | null> => {
 // User management
 // This function should only be called when a user explicitly requests access to the system
 // (e.g. from the landing page form) - not from forum posts or other email collections
-export const createUser = async (
-  email: string,
-  isAdmin: boolean = false,
-  isSuperAdmin: boolean = false,
-  password?: string
-): Promise<boolean> => {
+export const createUser = async (email: string): Promise<boolean> => {
   try {
     // Check if user already exists
     const { data: existingUsers } = await publicSupabase
@@ -158,45 +153,14 @@ export const createUser = async (
       .select('*')
       .eq('email', email);
 
-    // Hash password if provided
-    let hashedPassword: string | undefined = undefined;
-    if (password) {
-      // Import bcrypt inside function to avoid issues with SSR
-      const bcrypt = require('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
-      hashedPassword = await bcrypt.hash(password, salt);
-    }
-
     // If user doesn't exist, create one
     if (!existingUsers || existingUsers.length === 0) {
       const { error } = await publicSupabase
         .from('users')
-        .insert([{
-          email,
-          is_admin: isAdmin,
-          is_super_admin: isSuperAdmin,
-          password: hashedPassword
-        }]);
+        .insert([{ email }]);
 
       if (error) {
         console.error('Error creating user:', error);
-        return false;
-      }
-    } else if (isAdmin || isSuperAdmin || hashedPassword) {
-      // Update existing user to have admin/super admin privileges if specified
-      // and/or update password if provided
-      const updateData: any = {};
-      if (isAdmin) updateData.is_admin = true;
-      if (isSuperAdmin) updateData.is_super_admin = true;
-      if (hashedPassword) updateData.password = hashedPassword;
-
-      const { error } = await publicSupabase
-        .from('users')
-        .update(updateData)
-        .eq('email', email);
-
-      if (error) {
-        console.error('Error updating user:', error);
         return false;
       }
     }
@@ -289,7 +253,7 @@ export const getAdminUsers = async (): Promise<User[]> => {
 export const addAdminUser = async (email: string, isSuperAdmin: boolean = false): Promise<boolean> => {
   try {
     // First ensure the user exists
-    await createUser(email, true, isSuperAdmin);
+    await createUser(email);
 
     // Since createUser will either create a new admin user or update an existing one to be admin,
     // we just need to verify it worked
@@ -304,7 +268,7 @@ export const addAdminUser = async (email: string, isSuperAdmin: boolean = false)
 export const addSuperAdmin = async (email: string): Promise<boolean> => {
   try {
     // First ensure the user exists
-    await createUser(email, true, true);
+    await createUser(email);
 
     // Since createUser will either create a new admin user or update an existing one to be admin,
     // we just need to verify it worked

@@ -191,3 +191,25 @@ VALUES
   ('Elena Rodriguez', 'UX Designer', 'DesignHub',
    'The image handling is amazing! I can keep all my design references organized without effort.',
    5, TRUE);
+
+-- Email subscription auto-create user trigger
+CREATE OR REPLACE FUNCTION create_user_from_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only create users for emails from specific sources (landing page)
+  -- Do not create users for forum posts or other sources
+  IF NEW.source IN ('hero', 'footer', 'login') THEN
+    INSERT INTO users (email)
+    VALUES (NEW.email)
+    ON CONFLICT (email) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Attach trigger to emails table
+CREATE TRIGGER emails_insert_trigger
+AFTER INSERT ON emails
+FOR EACH ROW
+EXECUTE FUNCTION create_user_from_email();

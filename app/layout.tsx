@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { DM_Sans, Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
+import { Toaster } from 'sonner';
 import Link from 'next/link';
 
 const dmSans = DM_Sans({ subsets: ['latin'] });
@@ -31,6 +32,7 @@ export default function RootLayout({
             <main className="flex-grow">
               {children}
             </main>
+            <Toaster position="top-center" richColors />
           </AuthProvider>
         </ThemeProvider>
       </body>

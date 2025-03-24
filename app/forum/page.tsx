@@ -215,7 +215,7 @@ export default function Forum() {
           </div>
 
           <div>
-            <div className="bg-card p-6 rounded-lg shadow-sm border sticky top-4">
+            <div className="bg-card p-6 rounded-lg shadow-sm border sticky top-20">
               <h2 className="text-xl font-bold mb-4">Share Your Thoughts</h2>
               <form onSubmit={handleSubmit}>
                 <div className="space-y-4">

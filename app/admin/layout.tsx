@@ -16,7 +16,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const isLoginPage = pathname === '/admin/login';
   const isSetupPage = pathname === '/admin/setup';
-
+  const isRegisterPage = pathname === '/admin/register';
   // Check for localStorage admin auth for development
   useEffect(() => {
     try {
@@ -42,7 +42,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     // Don't redirect on the login page or setup page
-    if (isLoginPage || isSetupPage) return;
+    if (isLoginPage || isSetupPage || isRegisterPage) return;
 
     // Wait for auth state to be determined
     if (loading && !localAdminAuth) return;
@@ -60,7 +60,7 @@ export default function AdminLayout({
     if (user && !isAdmin) {
       router.push('/admin/login');
     }
-  }, [user, isAdmin, router, loading, isLoginPage, isSetupPage, localAdminAuth]);
+  }, [user, isAdmin, router, loading, isLoginPage, isSetupPage, isRegisterPage, localAdminAuth]);
 
   // Show loading state when checking auth
   if (loading && !localAdminAuth && !isLoginPage && !isSetupPage) {

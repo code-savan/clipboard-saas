@@ -6,182 +6,217 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, MailIcon, MessageSquare, LogOut, UserPlus, Shield, X, Star, Check, Award } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Loader2, MailIcon, MessageSquare, LogOut, UserPlus, Shield, X, Star, Check, Award, Menu } from 'lucide-react';
 import { validateEmail } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { Admin } from '@/update_db_types';
-import type { Email, ForumPost, Testimonial } from '@/update_db_types';
+import type { Testimonial } from '@/update_db_types';
+import type { EmailSubscription, ForumPost } from '@/lib/db';
 import { Toggle } from '@/components/ui/toggle';
 import { Badge } from '@/components/ui/badge';
+import { getEmails, getForumPosts } from '@/lib/db';
+import { toast } from 'sonner';
+
+// Prevent relying on server-side API routes
+// const checkAdminStatus = async () => {
+//   try {
+//     const { data: { session } } = await supabase.auth.getSession();
+
+//     if (!session || !session.user) {
+//       return { isAdmin: false, authenticated: false };
+//     }
+
+//     // Check local storage for admin status as a fallback
+//     const adminData = localStorage.getItem('admin_auth');
+//     if (adminData) {
+//       const { isAdmin, email } = JSON.parse(adminData);
+//       if (isAdmin && email === session.user.email) {
+//         return { isAdmin: true, authenticated: true, email: session.user.email };
+//       }
+//     }
+
+//     // Query the database directly instead of using API
+//     const { data, error } = await supabase
+//       .from('admins')
+//       .select('*')
+//       .eq('email', session.user.email)
+//       .single();
+
+//     if (error || !data) {
+//       // Try users table as fallback (for compatibility)
+//       const { data: userData, error: userError } = await supabase
+//         .from('users')
+//         .select('*')
+//         .eq('email', session.user.email)
+//         .eq('is_admin', true)
+//         .single();
+
+//       if (userError || !userData) {
+//         return { isAdmin: false, authenticated: true };
+//       }
+
+//       return { isAdmin: true, authenticated: true, email: session.user.email };
+//     }
+
+//     return { isAdmin: true, authenticated: true, email: session.user.email };
+//   } catch (error) {
+//     console.error('Error checking admin status:', error);
+//     return { isAdmin: false, authenticated: false };
+//   }
+// };
 
 export default function AdminDashboard() {
-  const [emails, setEmails] = useState<Email[]>([]);
+  const [emails, setEmails] = useState<EmailSubscription[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [adminUsers, setAdminUsers] = useState<Admin[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState<{email: string, isSuperAdmin: boolean} | null>(null);
+  const [currentTab, setCurrentTab] = useState('users');
   const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
-    // Check for localStorage admin auth (development mode)
-    const checkLocalAdminAuth = () => {
-      try {
-        const localAuth = localStorage.getItem('admin_auth');
-        if (localAuth) {
-          const authData = JSON.parse(localAuth);
-          // Validate timestamp - require login every 24 hours
-          if (authData.timestamp && Date.now() - authData.timestamp < 24 * 60 * 60 * 1000) {
-            setIsDevelopmentMode(true);
-            setCurrentAdmin({
-              email: authData.email,
-              isSuperAdmin: authData.isSuperAdmin
-            });
-            fetchData();
-            return true;
-          } else {
-            // Clear expired auth
-            localStorage.removeItem('admin_auth');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking local admin auth:', error);
-      }
-      return false;
-    };
-
     const checkAuth = async () => {
-      // Try local auth for development mode
-      if (checkLocalAdminAuth()) {
-        // Already authenticated via localStorage
-        return;
-      }
+      try {
+        const adminData = localStorage.getItem('admin_auth');
+        if (!adminData) {
+          toast('You need to be an admin to access this page');
+          router.push('/admin/login');
+          return;
+        }
 
-      // If no local auth, redirect to login
-      router.push('/admin/login');
+        const { email, isSuperAdmin } = JSON.parse(adminData);
+        setCurrentAdmin({ email, isSuperAdmin });
+
+        // Fetch all data in parallel
+        await Promise.all([
+          fetchData(),
+          fetchAdminData(),
+          fetchTestimonials(),
+          fetchUsers()
+        ]);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error initializing admin dashboard:', error);
+        toast('Failed to load admin dashboard data');
+        setLoading(false);
+      }
     };
 
     checkAuth();
-  }, []); // Removed dependencies for simpler auth flow
+  }, [router]);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
-      // Fetch emails
-      const { data: emailsData, error: emailsError } = await supabase
+      // Fetch email subscriptions
+      const { data: emailData, error: emailError } = await supabase
         .from('emails')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (emailsError) throw emailsError;
-      setEmails(emailsData || []);
+      if (emailError) {
+        console.error('Error fetching emails:', emailError);
+        throw emailError;
+      }
+
+      console.log('Fetched emails:', emailData); // Debug log
 
       // Fetch forum posts
-      const { data: postsData, error: postsError } = await supabase
+      const { data: forumData, error: forumError } = await supabase
         .from('forum_posts')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (postsError) throw postsError;
-      setForumPosts(postsData || []);
+      if (forumError) {
+        console.error('Error fetching forum posts:', forumError);
+        throw forumError;
+      }
 
-      // Fetch testimonials
-      const { data: testimonialsData, error: testimonialsError } = await supabase
-        .from('testimonials')
-        .select('*')
-        .order('created_at', { ascending: false });
+      console.log('Fetched forum posts:', forumData); // Debug log
 
-      if (testimonialsError) throw testimonialsError;
-      setTestimonials(testimonialsData || []);
+      setEmails(emailData || []);
+      setForumPosts(forumData || []);
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+      toast('Failed to load data');
+    }
+  };
 
-      // Fetch admin users
-      const { data: adminsData, error: adminsError } = await supabase
+  const fetchAdminData = async () => {
+    try {
+      const { data, error } = await supabase
         .from('admins')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (adminsError) throw adminsError;
-      setAdminUsers(adminsData || []);
+      if (error) throw error;
+
+      setAdminUsers(data || []);
+
+      // Check if current admin is super admin
+      const adminData = localStorage.getItem('admin_auth');
+      if (adminData) {
+        const { email, isSuperAdmin } = JSON.parse(adminData);
+        setCurrentAdmin(prev => ({
+          ...prev!,
+          isSuperAdmin: isSuperAdmin || false
+        }));
+      }
     } catch (error) {
       console.error('Error fetching admin data:', error);
-      // Mock data for development if API fails
-      setEmails([
-        {
-          id: 'mock1',
-          email: 'user1@example.com',
-          source: 'hero',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'mock2',
-          email: 'user2@example.com',
-          source: 'login',
-          created_at: new Date(Date.now() - 86400000).toISOString()
-        }
-      ]);
-      setForumPosts([
-        {
-          id: 'mock1',
-          name: 'John Smith',
-          email: 'john@example.com',
-          message: 'This is a sample forum post.',
-          likes: 5,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]);
-      setTestimonials([
-        {
-          id: 'mock1',
-          name: 'Jane Cooper',
-          role: 'CEO',
-          company: 'Acme Inc',
-          quote: 'This clipboard tool has been a game-changer for our team. We use it daily!',
-          stars: 5,
-          is_verified: true,
-          is_featured: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'mock2',
-          name: 'Mike Wilson',
-          role: 'Developer',
-          company: 'Tech Solutions',
-          quote: 'Great tool, saves me hours each week.',
-          stars: 4,
-          is_verified: true,
-          is_featured: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]);
-      setAdminUsers([
-        {
-          id: 'mock1',
-          email: 'admin@clipboardapp.com',
-          is_super: false,
-          password: 'hashed-password',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchTestimonials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTestimonials(data || []);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      toast('Failed to load testimonials');
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+
+      console.log('Fetched users:', data); // Debug log
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error in fetchUsers:', error);
+      toast('Failed to load users');
     }
   };
 
   const handleSignOut = async () => {
-    // Clear local admin auth
-    localStorage.removeItem('admin_auth');
-    setIsDevelopmentMode(false);
-    router.push('/admin/login');
+    try {
+      localStorage.removeItem('admin_auth');
+      await supabase.auth.signOut();
+      toast('Signed out successfully');
+      router.push('/admin/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast('Failed to sign out');
+    }
   };
 
   const handleAddAdmin = async (e: React.FormEvent) => {
@@ -218,25 +253,13 @@ export default function AdminDashboard() {
       }
 
       // Refresh admin users list
-      const { data: adminsData } = await supabase
-        .from('admins')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      setAdminUsers(adminsData || []);
+      fetchAdminData();
       setNewAdminEmail('');
 
-      toast({
-        title: "Admin Added",
-        description: `${newAdminEmail} has been added as an admin user with temporary password: ${tempPassword}`,
-      });
+      toast(`${newAdminEmail} has been added as an admin user with temporary password: ${tempPassword}`);
     } catch (error) {
       console.error('Error adding admin:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add admin user. Please try again.",
-        variant: "destructive",
-      });
+      toast('Failed to add admin user. Please try again.');
     } finally {
       setIsAddingAdmin(false);
     }
@@ -246,23 +269,15 @@ export default function AdminDashboard() {
     try {
       // Don't allow removing current admin
       if (currentAdmin?.email === email) {
-        toast({
-          title: "Cannot Remove",
-          description: "You cannot remove your own admin privileges.",
-          variant: "destructive",
-        });
-        return;
-      }
+        toast('You cannot remove your own admin privileges.');
+      return;
+    }
 
       // Don't allow non-super admins to remove other admins
       if (!currentAdmin?.isSuperAdmin) {
-        toast({
-          title: "Permission Denied",
-          description: "Only super admins can remove other admin users.",
-          variant: "destructive",
-        });
-        return;
-      }
+        toast('Only super admins can remove other admin users.');
+      return;
+    }
 
       const { error } = await supabase
         .from('admins')
@@ -274,24 +289,11 @@ export default function AdminDashboard() {
       }
 
       // Refresh admin users list
-      const { data: adminsData } = await supabase
-        .from('admins')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      setAdminUsers(adminsData || []);
-
-      toast({
-        title: "Admin Removed",
-        description: `${email} has been removed from admin users.`,
-      });
+      fetchAdminData();
+      toast(`${email} has been removed from admin users.`);
     } catch (error) {
       console.error('Error removing admin:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove admin user. Please try again.",
-        variant: "destructive",
-      });
+      toast('Failed to remove admin user. Please try again.');
     }
   };
 
@@ -315,17 +317,50 @@ export default function AdminDashboard() {
         )
       );
 
-      toast({
-        title: field === 'is_featured' ? 'Featured Status Updated' : 'Verification Status Updated',
-        description: `Testimonial ${field === 'is_featured' ? (currentValue ? 'removed from' : 'added to') + ' featured section' : (currentValue ? 'marked as unverified' : 'verified')}.`,
-      });
+      const statusMessage = field === 'is_featured'
+        ? `Testimonial ${currentValue ? 'removed from' : 'added to'} featured section`
+        : `Testimonial ${currentValue ? 'marked as unverified' : 'verified'}`;
+
+      toast(statusMessage);
     } catch (error) {
       console.error(`Error updating testimonial ${field}:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to update testimonial status. Please try again.`,
-        variant: "destructive",
-      });
+      toast('Failed to update testimonial status. Please try again.');
+    }
+  };
+
+  const handleDeleteForumPost = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from('forum_posts')
+        .delete()
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      // Update local state
+      setForumPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      toast('Forum post deleted successfully');
+    } catch (error) {
+      console.error('Error deleting forum post:', error);
+      toast('Failed to delete forum post');
+    }
+  };
+
+  const handleDeleteTestimonial = async (testimonialId: string) => {
+    try {
+      const { error } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', testimonialId);
+
+      if (error) throw error;
+
+      // Update local state
+      setTestimonials(prevTestimonials => prevTestimonials.filter(testimonial => testimonial.id !== testimonialId));
+      toast('Testimonial deleted successfully');
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      toast('Failed to delete testimonial');
     }
   };
 
@@ -339,261 +374,374 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Instant ClipBoard Admin</h1>
-          {currentAdmin?.email && (
-            <p className="text-sm text-muted-foreground">
-              Logged in as: {currentAdmin.email}
-              {currentAdmin.isSuperAdmin && " (Super Admin)"}
-            </p>
-          )}
+    <div className="flex h-screen bg-muted/40 dark:bg-transparent">
+      {/* Sidebar */}
+      <div className="hidden md:flex w-64 flex-col border-r bg-background">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">Instant ClipBoard</h2>
+          <p className="text-sm text-muted-foreground">Admin Dashboard</p>
         </div>
-        <Button variant="outline" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
-        </Button>
+        <div className="flex-1 space-y-1 p-2">
+          <Button
+            variant={currentTab === 'users' ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setCurrentTab('users')}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Users
+          </Button>
+          <Button
+            variant={currentTab === 'emails' ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setCurrentTab('emails')}
+          >
+            <MailIcon className="mr-2 h-4 w-4" />
+            Emails
+          </Button>
+          <Button
+            variant={currentTab === 'forum' ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setCurrentTab('forum')}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Forum Posts
+          </Button>
+          <Button
+            variant={currentTab === 'testimonials' ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setCurrentTab('testimonials')}
+          >
+            <Star className="mr-2 h-4 w-4" />
+            Testimonials
+          </Button>
+          <Button
+            variant={currentTab === 'admins' ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setCurrentTab('admins')}
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            Admins
+          </Button>
+        </div>
+        <div className="border-t p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{currentAdmin?.email}</p>
+              {currentAdmin?.isSuperAdmin && (
+                <p className="text-xs text-muted-foreground">Super Admin</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="emails">
-        <TabsList className="mb-4">
-          <TabsTrigger value="emails">
-            <MailIcon className="h-4 w-4 mr-2" />
-            Email Subscriptions
-          </TabsTrigger>
-          <TabsTrigger value="forum">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Forum Posts
-          </TabsTrigger>
-          <TabsTrigger value="testimonials">
-            <Star className="h-4 w-4 mr-2" />
-            Testimonials
-          </TabsTrigger>
-          <TabsTrigger value="admins">
-            <Shield className="h-4 w-4 mr-2" />
-            Admin Users
-          </TabsTrigger>
-        </TabsList>
+      {/* Mobile Header */}
+      <div className="md:hidden border-b bg-background">
+        <div className="flex h-16 items-center px-4">
+          <Button variant="ghost" size="sm" className="md:hidden">
+            <Menu className="h-5 w-5" />
+          </Button>
+          <h2 className="ml-2 text-lg font-semibold">Instant ClipBoard</h2>
+          <div className="ml-auto flex items-center space-x-4">
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
-        <TabsContent value="emails">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Subscriptions</CardTitle>
-              <CardDescription>Manage email subscribers for newsletters and updates</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {emails.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No email subscriptions yet.</p>
-              ) : (
-                <div className="border rounded-md">
-                  <div className="grid grid-cols-3 font-medium p-3 border-b bg-muted/50">
-                    <div>Email</div>
-                    <div>Source</div>
-                    <div>Date</div>
-                  </div>
-                  <div className="divide-y">
-                    {emails.map((sub) => (
-                      <div key={sub.id} className="grid grid-cols-3 p-3">
-                        <div className="font-medium">{sub.email}</div>
-                        <div className="capitalize">{sub.source}</div>
-                        <div>{new Date(sub.created_at).toLocaleString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="forum">
-          <Card>
-            <CardHeader>
-              <CardTitle>Forum Posts</CardTitle>
-              <CardDescription>Manage forum posts and discussions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {forumPosts.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No forum posts yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {forumPosts.map((post) => (
-                    <Card key={post.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-base">{post.name}</CardTitle>
-                            <CardDescription>{post.email || 'Anonymous'}</CardDescription>
-                          </div>
-                          <div className="flex items-center space-x-2 text-muted-foreground text-sm">
-                            <span>❤️ {post.likes}</span>
-                            <span>•</span>
-                            <span>{new Date(post.created_at).toLocaleString()}</span>
-                          </div>
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto py-8 px-4">
+          <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-4">
+            <div className="space-y-4">
+              <TabsContent value="users" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registered Users</CardTitle>
+                    <CardDescription>Manage user accounts and permissions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {users.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">No registered users yet.</p>
+                    ) : (
+                      <div className="border rounded-md">
+                        <div className="grid grid-cols-2 font-medium p-3 border-b bg-muted/50">
+                          <div>Email</div>
+                          <div>Joined</div>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p>{post.message}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="testimonials">
-          <Card>
-            <CardHeader>
-              <CardTitle>Testimonials</CardTitle>
-              <CardDescription>Manage customer testimonials and reviews</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {testimonials.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No testimonials yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {testimonials.map((testimonial) => (
-                    <Card key={testimonial.id} className={testimonial.is_featured ? "border-primary" : ""}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <CardTitle className="text-base">{testimonial.name}</CardTitle>
-                              {testimonial.is_verified && (
-                                <Badge variant="outline" className="text-blue-500 border-blue-300 bg-blue-50 dark:bg-blue-900/20">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Verified
-                                </Badge>
-                              )}
-                              {testimonial.is_featured && (
-                                <Badge variant="outline" className="text-amber-500 border-amber-300 bg-amber-50 dark:bg-amber-900/20">
-                                  <Award className="h-3 w-3 mr-1" />
-                                  Featured
-                                </Badge>
-                              )}
+                        <div className="divide-y">
+                          {users.map((user) => (
+                            <div key={user.id} className="grid grid-cols-2 p-3">
+                              <div className="font-medium">{user.email}</div>
+                              <div>{new Date(user.created_at || '').toLocaleString()}</div>
                             </div>
-                            <CardDescription>
-                              {testimonial.role}{testimonial.company ? `, ${testimonial.company}` : ''}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center space-x-1 text-amber-400">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-4 w-4 ${i < testimonial.stars ? 'fill-current' : 'text-muted-foreground/30'}`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="mb-4">{testimonial.quote}</p>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={testimonial.is_verified ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800" : ""}
-                            onClick={() => toggleTestimonialStatus(testimonial.id, 'is_verified', testimonial.is_verified)}
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            {testimonial.is_verified ? 'Unverify' : 'Verify'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={testimonial.is_featured ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800" : ""}
-                            onClick={() => toggleTestimonialStatus(testimonial.id, 'is_featured', testimonial.is_featured)}
-                          >
-                            <Award className="h-4 w-4 mr-1" />
-                            {testimonial.is_featured ? 'Unfeature' : 'Feature'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <p className="text-sm text-muted-foreground">
-                Frontend testimonial submission functionality will be available soon.
-              </p>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="admins">
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Users</CardTitle>
-              <CardDescription>Manage admin users and permissions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="border rounded-md">
-                  <div className="grid grid-cols-3 font-medium p-3 border-b bg-muted/50">
-                    <div>Email</div>
-                    <div>Type</div>
-                    <div>Actions</div>
-                  </div>
-                  <div className="divide-y">
-                    {adminUsers.map((admin) => (
-                      <div key={admin.id} className="grid grid-cols-3 p-3">
-                        <div className="font-medium">{admin.email}</div>
-                        <div>{admin.is_super ? 'Super Admin' : 'Admin'}</div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-destructive"
-                            onClick={() => handleRemoveAdmin(admin.email)}
-                            disabled={admin.email === currentAdmin?.email || !currentAdmin?.isSuperAdmin}
-                          >
-                            <X className="h-3 w-3 mr-1" />
-                            Remove
-                          </Button>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                {currentAdmin?.isSuperAdmin && (
-                  <form onSubmit={handleAddAdmin} className="space-y-4">
-                    <h3 className="text-lg font-medium">Add New Admin</h3>
-                    <div className="flex space-x-2">
-                      <div className="flex-1">
-                        <Input
-                          placeholder="admin@example.com"
-                          value={newAdminEmail}
-                          onChange={(e) => setNewAdminEmail(e.target.value)}
-                        />
-                        {emailError && (
-                          <p className="text-destructive text-sm mt-1">{emailError}</p>
-                        )}
+              <TabsContent value="emails" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Email Subscriptions</CardTitle>
+                    <CardDescription>Newsletter and updates subscribers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {emails.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">No email subscriptions yet.</p>
+                    ) : (
+                      <div className="border rounded-md">
+                        <div className="grid grid-cols-3 font-medium p-3 border-b bg-muted/50">
+                          <div>Email</div>
+                          <div>Source</div>
+                          <div>Date</div>
+                        </div>
+                        <div className="divide-y">
+                          {emails.map((sub) => (
+                            <div key={sub.id} className="grid grid-cols-3 p-3">
+                              <div className="font-medium">{sub.email}</div>
+                              <div>{sub.source}</div>
+                              <div>{new Date(sub.created_at || '').toLocaleString()}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <Button type="submit" disabled={isAddingAdmin}>
-                        {isAddingAdmin ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <UserPlus className="h-4 w-4 mr-2" />
-                        )}
-                        Add Admin
-                      </Button>
-                    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="forum" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Forum Posts</CardTitle>
+                    <CardDescription>Manage forum posts and discussions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {forumPosts.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">No forum posts yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {forumPosts.map((post) => (
+                          <Card key={post.id} className="overflow-hidden">
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <CardTitle className="text-base">{post.name}</CardTitle>
+                                  <CardDescription>{post.email || 'Anonymous'}</CardDescription>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex items-center space-x-2 text-muted-foreground text-sm">
+                                    <Badge variant="outline" className="text-rose-500">❤️ {post.likes}</Badge>
+                                    <span>•</span>
+                                    <span>{new Date(post.created_at || '').toLocaleString()}</span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => post.id && handleDeleteForumPost(post.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm">{post.message}</p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="testimonials" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Testimonials</CardTitle>
+                    <CardDescription>Manage customer testimonials and reviews</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {testimonials.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">No testimonials yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {testimonials.map((testimonial) => (
+                          <Card key={testimonial.id} className={testimonial.is_featured ? " shadow-md" : ""}>
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <CardTitle className="text-base">{testimonial.name}</CardTitle>
+                                    {testimonial.is_verified && (
+                                      <Badge variant="outline" className="text-blue-500 border-blue-300 bg-blue-50 dark:bg-blue-900/20">
+                                        <Check className="h-3 w-3 mr-1" />
+                                        Verified
+                                      </Badge>
+                                    )}
+                                    {testimonial.is_featured && (
+                                      <Badge variant="outline" className="text-amber-500 border-amber-300 bg-amber-50 dark:bg-amber-900/20">
+                                        <Award className="h-3 w-3 mr-1" />
+                                        Featured
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <CardDescription>
+                                    {testimonial.role}{testimonial.company ? `, ${testimonial.company}` : ''}
+                                  </CardDescription>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex items-center space-x-1 text-amber-400">
+                                    {Array.from({ length: 5 }, (_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-4 w-4 ${i < testimonial.stars ? 'fill-current' : 'text-muted-foreground/30'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteTestimonial(testimonial.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="mb-4 text-sm italic">{testimonial.quote}</p>
+                              <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={testimonial.is_verified ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800" : ""}
+                                  onClick={() => toggleTestimonialStatus(testimonial.id, 'is_verified', testimonial.is_verified)}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {testimonial.is_verified ? 'Unverify' : 'Verify'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={testimonial.is_featured ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800" : ""}
+                                  onClick={() => toggleTestimonialStatus(testimonial.id, 'is_featured', testimonial.is_featured)}
+                                >
+                                  <Award className="h-4 w-4 mr-1" />
+                                  {testimonial.is_featured ? 'Unfeature' : 'Feature'}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter>
                     <p className="text-sm text-muted-foreground">
-                      New admin will receive a temporary password that they should change immediately.
+                      Frontend testimonial submission functionality will be available soon.
                     </p>
-                  </form>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="admins" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Admin Users</CardTitle>
+                    <CardDescription>Manage admin users and permissions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="border rounded-md overflow-hidden">
+                        <div className="grid grid-cols-3 font-medium p-3 border-b bg-muted/50">
+                          <div>Email</div>
+                          <div>Type</div>
+                          <div>Actions</div>
+                        </div>
+                        <div className="divide-y">
+                          {adminUsers.map((admin) => (
+                            <div key={admin.id} className="grid grid-cols-3 p-3">
+                              <div className="font-medium">{admin.email}</div>
+                              <div>
+                                {admin.is_super ? (
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800">
+                                    Super Admin
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline">Admin</Badge>
+                                )}
+                              </div>
+                              <div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-destructive"
+                                  onClick={() => handleRemoveAdmin(admin.email)}
+                                  disabled={admin.email === currentAdmin?.email || !currentAdmin?.isSuperAdmin}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {currentAdmin?.isSuperAdmin && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Add New Admin</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <form onSubmit={handleAddAdmin} className="space-y-4">
+                              <div className="flex space-x-2">
+                                <div className="flex-1">
+                                  <Input
+                                    placeholder="admin@example.com"
+                                    value={newAdminEmail}
+                                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                                  />
+                                  {emailError && (
+                                    <p className="text-destructive text-sm mt-1">{emailError}</p>
+                                  )}
+                                </div>
+                                <Button type="submit" disabled={isAddingAdmin}>
+                                  {isAddingAdmin ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : (
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                  )}
+                                  Add Admin
+                                </Button>
+                              </div>
+                              <CardDescription>
+                                New admin will receive a temporary password that they should change immediately.
+                              </CardDescription>
+                            </form>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
