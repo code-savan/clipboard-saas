@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Instant ClibBoard</title>
-  <link rel="stylesheet" href="popup.css">
   <style>
     :root {
       --background: 0 0% 100%;
@@ -162,6 +161,19 @@
       left: 24px;
       top: 20px;
       color: hsl(var(--muted-foreground));
+    }
+
+    .clear-button {
+      position: absolute;
+      right: 24px;
+      top: 20px;
+      color: hsl(var(--muted-foreground));
+      cursor: pointer;
+      background: none;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .items-container {
@@ -343,6 +355,32 @@
       border-radius: var(--radius);
     }
 
+    .item-copied {
+      position: absolute;
+      bottom: 4px;
+      right: 8px;
+      background-color: rgb(16, 185, 129, 0.1);
+      color: rgb(16, 185, 129);
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      animation: fadeIn 0.3s;
+    }
+
+    .pinned-item {
+      border-left: 4px solid rgb(16, 185, 129);
+      padding-left: 12px;
+      background-color: rgba(16, 185, 129, 0.05);
+    }
+
+    [data-theme="dark"] .pinned-item {
+      border-left-color: rgb(139, 92, 246);
+      background-color: rgba(139, 92, 246, 0.1);
+    }
+
     .empty-state {
       display: flex;
       flex-direction: column;
@@ -441,11 +479,17 @@
     </div>
 
     <div class="search-container">
-      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
       <input id="searchInput" type="text" class="search-input" placeholder="Search clipboard items...">
+      <button id="clearSearchButton" class="clear-button" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
 
     <div class="items-container">
@@ -472,7 +516,8 @@
           </svg>
         </div>
         <h4 class="empty-title">No matches found</h4>
-        <p class="empty-description">No clipboard items match your search. Try different keywords.</p>
+        <p class="empty-description">No clipboard items match your search. Try different keywords or clear the search.</p>
+        <button id="clearSearchFromEmpty" class="clear-button">Clear search</button>
       </div>
     </div>
 

@@ -72,21 +72,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Log debug info
   console.log('Clipboard widget initialized');
-
-  // Add animations CSS
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(5px); }
-    }
-  `;
-  document.head.appendChild(style);
 });
 
 // Load clipboard items from storage
@@ -108,12 +93,7 @@ async function loadItems() {
 
     // Save filtered items back to storage
     if (items.length !== storedItems.length) {
-      try {
-        await chrome.storage.local.set({ items });
-      } catch (storageError) {
-        // Handle storage error silently
-        console.warn('Could not save filtered items:', storageError);
-      }
+      chrome.storage.local.set({ items });
     }
 
     renderItems();
@@ -126,28 +106,6 @@ async function loadItems() {
     }
   } catch (error) {
     console.error('Error loading items:', error);
-
-    // Handle "Extension context invalidated" error gracefully
-    if (error.message && error.message.includes('Extension context invalidated')) {
-      console.log('Extension context was invalidated. The page needs to be refreshed.');
-
-      // Show a message to the user instead of just failing
-      itemsList.innerHTML = `
-        <div style="padding: 20px; text-align: center;">
-          <p>The extension was updated or reloaded.</p>
-          <p>Please close and reopen the clipboard widget.</p>
-        </div>
-      `;
-
-      // Try to automatically recover by reloading after a short delay
-      setTimeout(() => {
-        try {
-          window.location.reload();
-        } catch (reloadError) {
-          console.warn('Could not automatically reload:', reloadError);
-        }
-      }, 3000);
-    }
   }
 }
 
@@ -156,7 +114,26 @@ function setupEventListeners() {
   // Search input event
   searchInput.addEventListener('input', () => {
     searchQuery = searchInput.value.trim().toLowerCase();
+    clearSearchButton.style.display = searchQuery ? 'flex' : 'none';
     renderItems();
+  });
+
+//   Clear search button event
+  clearSearchButton.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    clearSearchButton.style.display = 'none';
+    renderItems();
+    searchInput.focus();
+  });
+
+//   Clear search from empty state button event
+  clearSearchFromEmpty.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    clearSearchButton.style.display = 'none';
+    renderItems();
+    searchInput.focus();
   });
 
   // Theme toggle event
@@ -182,29 +159,13 @@ function setupEventListeners() {
       if (searchQuery) {
         searchInput.value = '';
         searchQuery = '';
+        clearSearchButton.style.display = 'none';
         renderItems();
         searchInput.focus();
         e.preventDefault();
       } else {
         closeWidget();
       }
-    }
-  });
-
-  // Track double-tap of Tab key
-  let lastTabPress = 0;
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      const now = Date.now();
-      const timeDiff = now - lastTabPress;
-
-      // Check if this is a double-tap (within 500ms)
-      if (timeDiff < 500 && timeDiff > 0) {
-        e.preventDefault();
-        closeWidget();
-      }
-
-      lastTabPress = now;
     }
   });
 
@@ -272,7 +233,6 @@ function createItemElement(item) {
   const itemElement = document.createElement('div');
   itemElement.className = 'clipboard-item';
   itemElement.dataset.id = item.id;
-  itemElement.dataset.type = item.type;
 
   if (item.isPinned) {
     itemElement.classList.add('pinned-item');
@@ -280,20 +240,6 @@ function createItemElement(item) {
 
   if (expandedItem === item.id) {
     itemElement.classList.add('item-expanded');
-  }
-
-  if (selectedItems.has(item.id)) {
-    itemElement.classList.add('selected-item');
-  }
-
-  // Add shadow similar to ClipboardWidget.tsx
-  itemElement.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
-  itemElement.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease';
-
-  if (item.type === 'link') {
-    itemElement.style.background = 'linear-gradient(to bottom right, white, rgba(239, 246, 255, 0.5))';
-  } else if (item.type === 'image') {
-    itemElement.style.background = 'linear-gradient(to bottom right, white, rgba(245, 243, 255, 0.5))';
   }
 
   // Create item content container
@@ -439,32 +385,7 @@ function createItemElement(item) {
   if (copiedId === item.id) {
     const copiedIndicator = document.createElement('div');
     copiedIndicator.className = 'item-copied';
-
-    // Style similar to ClipboardWidget.tsx
-    copiedIndicator.style.position = 'absolute';
-    copiedIndicator.style.bottom = '4px';
-    copiedIndicator.style.right = '8px';
-    copiedIndicator.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-    copiedIndicator.style.color = 'rgb(16, 185, 129)';
-    copiedIndicator.style.fontSize = '12px';
-    copiedIndicator.style.padding = '2px 8px';
-    copiedIndicator.style.borderRadius = '9999px';
-    copiedIndicator.style.display = 'flex';
-    copiedIndicator.style.alignItems = 'center';
-    copiedIndicator.style.gap = '4px';
-    copiedIndicator.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-    copiedIndicator.style.animation = 'fadeIn 0.3s ease-in-out';
-
-    // Content with check icon and appropriate text
-    const checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-
-    let copiedText = 'Copied';
-    if (items.find(item => item.id === id)?.type === 'link') {
-      const content = items.find(item => item.id === id)?.content || '';
-      copiedText = content.length > 20 ? content.substring(0, 20) + '...' : content;
-    }
-
-    copiedIndicator.innerHTML = `${checkIcon}<span>${copiedText}</span>`;
+    copiedIndicator.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied</span>';
     itemElement.appendChild(copiedIndicator);
   }
 
@@ -508,209 +429,25 @@ function startTipRotation() {
 // Copy content to clipboard
 async function copyToClipboard(content, id) {
   try {
-    // Try to use the Clipboard API first
     await navigator.clipboard.writeText(content);
-    showCopiedIndicator(id);
+
+    // Show copied indicator
+    copiedId = id;
+    renderItems(); // Re-render to show the copied indicator
+
+    // Hide after 2 seconds
+    setTimeout(() => {
+      copiedId = null;
+      renderItems();
+    }, 2000);
+
+    // Close widget after small delay
+    setTimeout(() => {
+      closeWidget();
+    }, 1000);
   } catch (error) {
     console.error('Failed to copy to clipboard:', error);
-
-    // If Clipboard API fails, try fallback methods
-    if (error.name === 'NotAllowedError' ||
-        error.message?.includes('permissions policy') ||
-        error.message?.includes('permission')) {
-
-      console.log('Using fallback copy method due to permissions restrictions');
-
-      try {
-        // Fallback 1: Use execCommand (deprecated but works in most browsers)
-        const textArea = document.createElement('textarea');
-        textArea.value = content;
-
-        // Make the textarea out of viewport
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-
-        textArea.focus();
-        textArea.select();
-
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-
-        if (successful) {
-          showCopiedIndicator(id);
-        } else {
-          // Fallback 2: Show manual copy instructions
-          showManualCopyInstructions(content, id);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback copy also failed:', fallbackError);
-        showManualCopyInstructions(content, id);
-      }
-    } else {
-      // For other errors, show a simple error message
-      alert('Could not copy to clipboard. Please try again.');
-    }
   }
-}
-
-// Show copied indicator after successful copy
-function showCopiedIndicator(id) {
-  // Prevent indicator flickering by checking if we're already showing this indicator
-  if (copiedId === id) return;
-
-  // Show copied indicator
-  copiedId = id;
-
-  // Add the indicator directly to avoid full re-render
-  const itemElement = document.querySelector(`.clipboard-item[data-id="${id}"]`);
-  if (itemElement) {
-    // Remove any existing indicators first
-    const existingIndicator = itemElement.querySelector('.item-copied');
-    if (existingIndicator) {
-      itemElement.removeChild(existingIndicator);
-    }
-
-    const copiedIndicator = document.createElement('div');
-    copiedIndicator.className = 'item-copied';
-
-    // Style similar to ClipboardWidget.tsx
-    copiedIndicator.style.position = 'absolute';
-    copiedIndicator.style.bottom = '4px';
-    copiedIndicator.style.right = '8px';
-    copiedIndicator.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-    copiedIndicator.style.color = 'rgb(16, 185, 129)';
-    copiedIndicator.style.fontSize = '12px';
-    copiedIndicator.style.padding = '2px 8px';
-    copiedIndicator.style.borderRadius = '9999px';
-    copiedIndicator.style.display = 'flex';
-    copiedIndicator.style.alignItems = 'center';
-    copiedIndicator.style.gap = '4px';
-    copiedIndicator.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-    copiedIndicator.style.animation = 'fadeIn 0.3s ease-in-out';
-
-    // Content with check icon and appropriate text
-    const checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-
-    let copiedText = 'Copied';
-    if (items.find(item => item.id === id)?.type === 'link') {
-      const content = items.find(item => item.id === id)?.content || '';
-      copiedText = content.length > 20 ? content.substring(0, 20) + '...' : content;
-    }
-
-    copiedIndicator.innerHTML = `${checkIcon}<span>${copiedText}</span>`;
-    itemElement.appendChild(copiedIndicator);
-  } else {
-    // Fall back to re-rendering if we can't find the element
-    renderItems();
-  }
-
-  // Hide after 2 seconds
-  setTimeout(() => {
-    copiedId = null;
-
-    // Remove the indicator directly instead of re-rendering
-    const itemElement = document.querySelector(`.clipboard-item[data-id="${id}"]`);
-    if (itemElement) {
-      const indicator = itemElement.querySelector('.item-copied');
-      if (indicator) {
-        // Add fade-out animation
-        indicator.style.animation = 'fadeOut 0.3s ease-in-out';
-        setTimeout(() => {
-          if (indicator.parentNode === itemElement) {
-            itemElement.removeChild(indicator);
-          }
-        }, 280);
-      }
-    } else {
-      // Fall back to re-rendering if we can't find the element
-      renderItems();
-    }
-  }, 2000);
-}
-
-// Show manual copy instructions when all copy methods fail
-function showManualCopyInstructions(content, id) {
-  // Create and show a modal with the content to copy
-  const modal = document.createElement('div');
-  modal.className = 'manual-copy-modal';
-  modal.style.position = 'fixed';
-  modal.style.top = '0';
-  modal.style.left = '0';
-  modal.style.width = '100%';
-  modal.style.height = '100%';
-  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-  modal.style.zIndex = '1000';
-  modal.style.display = 'flex';
-  modal.style.alignItems = 'center';
-  modal.style.justifyContent = 'center';
-
-  const modalContent = document.createElement('div');
-  modalContent.style.backgroundColor = 'white';
-  modalContent.style.padding = '20px';
-  modalContent.style.borderRadius = '8px';
-  modalContent.style.maxWidth = '90%';
-  modalContent.style.maxHeight = '80%';
-  modalContent.style.overflow = 'auto';
-  modalContent.style.position = 'relative';
-
-  const closeButton = document.createElement('button');
-  closeButton.innerHTML = '&times;';
-  closeButton.style.position = 'absolute';
-  closeButton.style.top = '10px';
-  closeButton.style.right = '10px';
-  closeButton.style.border = 'none';
-  closeButton.style.background = 'none';
-  closeButton.style.fontSize = '20px';
-  closeButton.style.cursor = 'pointer';
-  closeButton.style.fontWeight = 'bold';
-
-  const instructions = document.createElement('p');
-  instructions.textContent = 'Unable to automatically copy. Please select and copy this text manually:';
-  instructions.style.marginBottom = '10px';
-
-  const textArea = document.createElement('textarea');
-  textArea.value = content;
-  textArea.style.width = '100%';
-  textArea.style.minHeight = '100px';
-  textArea.style.padding = '8px';
-  textArea.style.marginBottom = '10px';
-  textArea.style.border = '1px solid #ccc';
-  textArea.style.borderRadius = '4px';
-  textArea.onclick = function() {
-    this.select();
-  };
-
-  const doneButton = document.createElement('button');
-  doneButton.textContent = 'Done';
-  doneButton.style.padding = '8px 16px';
-  doneButton.style.backgroundColor = '#4f46e5';
-  doneButton.style.color = 'white';
-  doneButton.style.border = 'none';
-  doneButton.style.borderRadius = '4px';
-  doneButton.style.cursor = 'pointer';
-
-  modalContent.appendChild(closeButton);
-  modalContent.appendChild(instructions);
-  modalContent.appendChild(textArea);
-  modalContent.appendChild(doneButton);
-  modal.appendChild(modalContent);
-
-  document.body.appendChild(modal);
-
-  // Auto-select the text for easy copying
-  setTimeout(() => {
-    textArea.select();
-  }, 100);
-
-  // Close on button clicks
-  closeButton.onclick = doneButton.onclick = function() {
-    document.body.removeChild(modal);
-
-    // Still show the copied indicator for UX consistency
-    showCopiedIndicator(id);
-  };
 }
 
 // Toggle pin status of an item
@@ -824,7 +561,6 @@ async function toggleTheme() {
 
     // Update settings
     settings.theme = newTheme;
-    settings.hasExplicitTheme = true; // Mark that user has explicitly set a theme
     await chrome.storage.local.set({ settings });
 
     // Apply theme

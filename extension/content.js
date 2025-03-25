@@ -222,26 +222,18 @@ document.addEventListener('touchend', (e) => {
   };
 });
 
-// Improved clipboard monitoring with fallback for restricted sites
+// Improved clipboard monitoring
 let lastCopiedText = '';
 let isMonitoring = true;
 
+// Poll clipboard periodically to catch items even when events aren't fired
 function startClipboardMonitoring() {
   setInterval(async () => {
     if (!isMonitoring) return;
 
-    // Only try to read the clipboard if the document has focus
-    if (document.hasFocus()) {
-      // Check current domain's policy on clipboard
-      const siteHasClipboardRestrictions =
-        document.domain.includes('medium.com') ||
-        document.domain.includes('twitter.com') ||
-        document.domain.includes('facebook.com');
-
-      // Note: This is a best-effort attempt. Some sites block clipboard completely,
-      // and we can only reliably capture clipboard events when they happen as user actions.
-
-      try {
+    try {
+      // Only try to read the clipboard if the document has focus
+      if (document.hasFocus()) {
         const text = await navigator.clipboard.readText();
 
         if (text && text.trim() && text !== lastCopiedText) {
@@ -256,12 +248,10 @@ function startClipboardMonitoring() {
             }
           });
         }
-      } catch (error) {
-        // Don't log the error on sites known to block clipboard access
-        if (!siteHasClipboardRestrictions) {
-          console.debug('Clipboard polling error (expected on some sites):', error.name);
-        }
       }
+    } catch (error) {
+      // Don't log the error to avoid console spam
+      // Some sites block clipboard access
     }
   }, 1000);
 }
@@ -285,28 +275,18 @@ function handleClipboardEvent(e) {
           }
         });
       } else {
-        // Sites like Medium.com block clipboard access
-        // First try the standard clipboard API
-        try {
-          const clipText = await navigator.clipboard.readText();
-          if (clipText && clipText.trim() && clipText !== lastCopiedText) {
-            lastCopiedText = clipText;
+        // Try reading from clipboard directly as fallback
+        const clipText = await navigator.clipboard.readText();
+        if (clipText && clipText.trim() && clipText !== lastCopiedText) {
+          lastCopiedText = clipText;
 
-            chrome.runtime.sendMessage({
-              action: 'clipboardEvent',
-              data: {
-                text: clipText,
-                url: currentUrl
-              }
-            });
-          }
-        } catch (clipboardError) {
-          // If clipboard read fails, log the error silently
-          // This is expected on sites with Permissions-Policy restrictions
-          if (clipboardError.name !== 'NotAllowedError' &&
-              !clipboardError.message?.includes('permissions policy')) {
-            console.debug('Clipboard read error:', clipboardError);
-          }
+          chrome.runtime.sendMessage({
+            action: 'clipboardEvent',
+            data: {
+              text: clipText,
+              url: currentUrl
+            }
+          });
         }
       }
     } catch (error) {
@@ -384,52 +364,12 @@ chrome.runtime.onMessage.addListener((message) => {
         error: error.message
       });
     });
-  } else if (message.action === 'extensionReloaded') {
-    // Extension was reloaded, refresh widget if open
-    const widgetContainer = document.querySelector('.clipboard-widget-container');
-    if (widgetContainer && widgetContainer.style.display !== 'none') {
-      // If widget is open, close and reopen
-      console.log('Extension was reloaded, refreshing widget');
-      toggleWidget(widgetContainer);
-
-      // Wait a bit and reopen
-      setTimeout(() => {
-        toggleWidget(widgetContainer);
-      }, 500);
-    }
   }
 });
-
-// Detect system theme preference and send to background script
-function detectSystemTheme() {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    chrome.runtime.sendMessage({
-      action: 'detectSystemTheme',
-      theme: 'dark'
-    });
-  } else {
-    chrome.runtime.sendMessage({
-      action: 'detectSystemTheme',
-      theme: 'light'
-    });
-  }
-}
-
-// Listen for changes to system color scheme
-if (window.matchMedia) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-    const newTheme = event.matches ? 'dark' : 'light';
-    chrome.runtime.sendMessage({
-      action: 'detectSystemTheme',
-      theme: newTheme
-    });
-  });
-}
 
 // Initialize
 createFloatingElements();
 startClipboardMonitoring();
-detectSystemTheme(); // Detect and send system theme preference
 
 // Add event listeners
 document.addEventListener('copy', handleClipboardEvent);

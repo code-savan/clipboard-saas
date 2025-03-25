@@ -53,7 +53,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "popup.js", "popup.css", "debug.html", "debug.js"],
+      "resources": ["popup.html", "popup.js", "debug.html", "debug.js"],
       "matches": ["<all_urls>"]
     }
   ]

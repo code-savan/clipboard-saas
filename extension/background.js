@@ -4,51 +4,23 @@ chrome.runtime.onInstalled.addListener(() => {
     if (!result.items) {
       chrome.storage.local.set({ items: [] });
     }
-
     if (!result.settings) {
-      // Default to light theme - service workers can't access window.matchMedia
-      let defaultTheme = 'light';
-
-      // We'll use the prefers-color-scheme in the content script later
       chrome.storage.local.set({
         settings: {
           maxItems: 100,
           autoSave: true,
-          notifications: false, // Disable notifications by default
-          theme: defaultTheme,
-          hideFloatingButton: false,
-          hasExplicitTheme: false
+          notifications: true,
+          theme: 'light',
+          hideFloatingButton: false // Default to showing the floating button
         }
       });
     } else if (result.settings && typeof result.settings.hideFloatingButton === 'undefined') {
       // Update existing settings if they don't have the hideFloatingButton property
       const settings = result.settings;
       settings.hideFloatingButton = false;
-      settings.notifications = false; // Ensure notifications are disabled
       chrome.storage.local.set({ settings });
     }
   });
-
-  // Notify any existing content scripts that extension was reloaded
-  // This helps recover from "Extension context invalidated" errors
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach(tab => {
-      if (tab.url && tab.url.startsWith('http')) {
-        try {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'extensionReloaded'
-          }).catch(() => {
-            // Ignore errors as some tabs might not have content script loaded
-          });
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-    });
-  });
-
-  // We can't listen for system color scheme changes here,
-  // we'll do that in the content script instead
 });
 
 // Add a context menu item to toggle the floating button
@@ -106,10 +78,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error('Forced clipboard capture failed:', message.error);
       }
       break;
-    case 'detectSystemTheme':
-      // Tabs can tell us their detected theme - we'll use the first one
-      handleThemeChange(message.theme, false);
-      break;
   }
   return true;
 });
@@ -139,9 +107,7 @@ async function handleCopyEvent(data) {
     }, RECENT_ITEM_TIMEOUT);
 
     // Get current settings
-    const result = await chrome.storage.local.get('settings');
-    const settings = result.settings || { autoSave: true, maxItems: 100 };
-
+    const { settings } = await chrome.storage.local.get('settings');
     if (!settings.autoSave) return;
 
     // Get current items
@@ -192,13 +158,12 @@ async function handleCopyEvent(data) {
     });
 
     // Limit items based on settings
-    const maxItems = settings.maxItems || 100;
-    if (items.length > maxItems) {
+    if (items.length > settings.maxItems) {
       const unpinnedItems = items.filter(item => !item.isPinned);
       const pinnedItems = items.filter(item => item.isPinned);
 
       // Keep all pinned items, but limit unpinned ones
-      unpinnedItems.length = Math.min(unpinnedItems.length, maxItems - pinnedItems.length);
+      unpinnedItems.length = Math.min(unpinnedItems.length, settings.maxItems - pinnedItems.length);
       items.length = 0;
       items.push(...pinnedItems, ...unpinnedItems);
 
@@ -212,26 +177,40 @@ async function handleCopyEvent(data) {
 
     await chrome.storage.local.set({ items });
 
-    // Notifications removed
+    if (settings.notifications) {
+      showNotification(text);
+    }
   } catch (error) {
     console.error('Error handling copy event:', error);
   }
 }
 
-// Handle theme changes
-async function handleThemeChange(theme, isExplicit = true) {
-  try {
-    const result = await chrome.storage.local.get('settings');
-    const settings = result.settings || {};
+// Show notification for copied content
+function showNotification(text) {
+  // Use different text based on content length
+  let message = text;
+  if (text.length > 50) {
+    message = text.substring(0, 47) + '...';
+  }
 
-    // Only update if explicit change or no explicit preference set
-    if (isExplicit || !settings.hasExplicitTheme) {
-      settings.theme = theme;
-      if (isExplicit) {
-        settings.hasExplicitTheme = true;
-      }
-      await chrome.storage.local.set({ settings });
-    }
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Clipboard Item Saved',
+      message: message
+    });
+  } catch (error) {
+    console.error('Notification error:', error);
+  }
+}
+
+// Handle theme changes
+async function handleThemeChange(theme) {
+  try {
+    const { settings = {} } = await chrome.storage.local.get('settings');
+    settings.theme = theme;
+    await chrome.storage.local.set({ settings });
   } catch (error) {
     console.error('Error handling theme change:', error);
   }
