@@ -23,14 +23,28 @@ const supabaseOptions = {
   },
   // Add global error handling for development
   global: {
-    fetch: (url: RequestInfo | URL, options?: RequestInit) => {
-      return fetch(url, options).catch(err => {
-        console.error('Supabase request error:', err);
+    fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          console.error('Supabase response not ok:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: url.toString()
+          });
+        }
+        return response;
+      } catch (err) {
+        console.error('Supabase request error:', {
+          error: err,
+          url: url.toString(),
+          options
+        });
         // Return a mock response for development
         return new Response(JSON.stringify({ data: [], error: null }), {
           headers: { 'content-type': 'application/json' }
         });
-      });
+      }
     }
   }
 };

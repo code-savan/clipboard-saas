@@ -21,6 +21,7 @@ let selectedItems = new Set();
 let searchQuery = '';
 let currentTipIndex = 0;
 let tipRotationInterval = null;
+let lastCopyTime = 0; // Add this to track when we last copied
 
 // DOM elements
 let itemsList = null;
@@ -32,7 +33,6 @@ let closeButton = null;
 let tipText = null;
 let emptyState = null;
 let noResults = null;
-let clearSearchFromEmpty = null;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
@@ -46,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   tipText = document.getElementById('tipText');
   emptyState = document.getElementById('emptyState');
   noResults = document.getElementById('noResults');
-  clearSearchFromEmpty = document.getElementById('clearSearchFromEmpty');
 
   // Load items from storage
   await loadItems();
@@ -60,15 +59,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load theme
   loadTheme();
 
-  // Focus search input
-  setTimeout(() => {
-    searchInput.focus();
-  }, 300);
+  // Focus search input when popup opens
+  const focusSearchInput = () => {
+    if (searchInput) {
+      searchInput.focus();
+    } else {
+      // Try again in case the element wasn't ready
+      setTimeout(focusSearchInput, 100);
+    }
+  };
 
-  // Reload items every 2 seconds to catch new ones
-  setInterval(async () => {
-    await loadItems();
-  }, 2000);
+  setTimeout(focusSearchInput, 100);
 
   // Log debug info
   console.log('Clipboard widget initialized');
@@ -84,10 +85,21 @@ async function loadItems() {
     // Filter out items older than 48 hours
     items = storedItems.filter(item => now - item.timestamp < 48 * 60 * 60 * 1000);
 
-    // Sort items: pinned first, then by timestamp
+    // Ensure all pinned items have a pinTimestamp
+    items.forEach(item => {
+      if (item.isPinned && !item.pinTimestamp) {
+        item.pinTimestamp = item.timestamp; // default to item creation time
+      }
+    });
+
+    // Sort items: pinned first (sorted by pin timestamp), then by timestamp
     items.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
+      if (a.isPinned && b.isPinned) {
+        // For pinned items, sort by pin timestamp (most recent first)
+        return (b.pinTimestamp || 0) - (a.pinTimestamp || 0);
+      }
       return b.timestamp - a.timestamp;
     });
 
@@ -118,17 +130,8 @@ function setupEventListeners() {
     renderItems();
   });
 
-//   Clear search button event
+  // Clear search button event
   clearSearchButton.addEventListener('click', () => {
-    searchInput.value = '';
-    searchQuery = '';
-    clearSearchButton.style.display = 'none';
-    renderItems();
-    searchInput.focus();
-  });
-
-//   Clear search from empty state button event
-  clearSearchFromEmpty.addEventListener('click', () => {
     searchInput.value = '';
     searchQuery = '';
     clearSearchButton.style.display = 'none';
@@ -201,11 +204,57 @@ function renderItems() {
   // Filter items based on search query
   const filteredItems = items.filter(item => {
     if (!searchQuery) return true;
-    return item.content.toLowerCase().includes(searchQuery);
+    return item.content.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Clear items list
   itemsList.innerHTML = '';
+
+  // Update header actions based on selection state
+  const headerActions = document.querySelector('.header-actions');
+  const existingDeleteButton = headerActions.querySelector('.delete-selected-button');
+  const existingClearSelectionButton = headerActions.querySelector('.clear-selection-button');
+
+  if (selectedItems.size > 0) {
+    // Add delete button if not already there
+    if (!existingDeleteButton) {
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'icon-button delete-selected-button';
+      deleteButton.title = `Delete ${selectedItems.size} selected item(s)`;
+      deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-red-600 dark:text-red-400"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+      deleteButton.addEventListener('click', () => {
+        removeItems(Array.from(selectedItems));
+      });
+      headerActions.insertBefore(deleteButton, headerActions.firstChild);
+    } else {
+      // Update existing button title
+      existingDeleteButton.title = `Delete ${selectedItems.size} selected item(s)`;
+    }
+
+    // Add clear selection button if not already there
+    if (!existingClearSelectionButton) {
+      const clearSelectionButton = document.createElement('button');
+      clearSelectionButton.className = 'icon-button clear-selection-button';
+      clearSelectionButton.title = `Clear selection (${selectedItems.size} items)`;
+      clearSelectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+      clearSelectionButton.addEventListener('click', () => {
+        selectedItems.clear();
+        renderItems();
+      });
+      headerActions.insertBefore(clearSelectionButton, existingDeleteButton ? existingDeleteButton.nextSibling : headerActions.firstChild);
+    } else {
+      // Update existing button title
+      existingClearSelectionButton.title = `Clear selection (${selectedItems.size} items)`;
+    }
+  } else {
+    // Remove buttons if no items selected
+    if (existingDeleteButton) {
+      headerActions.removeChild(existingDeleteButton);
+    }
+    if (existingClearSelectionButton) {
+      headerActions.removeChild(existingClearSelectionButton);
+    }
+  }
 
   // Show appropriate empty state
   if (filteredItems.length === 0) {
@@ -242,6 +291,10 @@ function createItemElement(item) {
     itemElement.classList.add('item-expanded');
   }
 
+  if (selectedItems.has(item.id)) {
+    itemElement.classList.add('selected');
+  }
+
   // Create item content container
   const contentContainer = document.createElement('div');
   contentContainer.className = 'item-content';
@@ -276,9 +329,20 @@ function createItemElement(item) {
     linkContent.textContent = item.content;
     textContainer.appendChild(linkContent);
   } else {
-    const textContent = document.createElement('p');
+    const textContent = document.createElement('div');
     textContent.className = 'text-content';
-    textContent.textContent = item.content;
+
+    // Preserve whitespace and line breaks
+    if (item.content.includes('\n')) {
+      // For multiline content, use pre-wrap to preserve formatting
+      textContent.style.whiteSpace = 'pre-wrap';
+      textContent.style.wordBreak = 'break-word';
+      textContent.textContent = item.content;
+    } else {
+      // For single line content
+      textContent.textContent = item.content;
+    }
+
     textContainer.appendChild(textContent);
   }
 
@@ -303,7 +367,7 @@ function createItemElement(item) {
   // Pin button
   const pinButton = document.createElement('button');
   pinButton.className = `action-button pin-button ${item.isPinned ? 'pinned' : ''}`;
-  pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
+  pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 16.24Z"></path></svg>';
   pinButton.title = item.isPinned ? 'Unpin item' : 'Pin item';
   pinButton.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -390,14 +454,66 @@ function createItemElement(item) {
   }
 
   // Add click event to copy item content
-  itemElement.addEventListener('click', () => {
+  itemElement.addEventListener('click', function() {
     // If in selection mode, toggle selection instead of copying
     if (selectedItems.size > 0) {
       toggleSelection(item.id);
       return;
     }
 
-    copyToClipboard(item.content, item.id);
+    // Prevent double-clicking from triggering multiple copies
+    const now = Date.now();
+    if (now - lastCopyTime < 1000) {
+      return; // Ignore clicks within 1 second of the last copy
+    }
+    lastCopyTime = now;
+
+    // Fallback copy method - more compatible with different browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = item.content;
+    textArea.style.position = 'fixed';  // Avoid scrolling to bottom
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    let successful = false;
+    try {
+      successful = document.execCommand('copy');
+      if (successful) {
+        copiedId = item.id;
+        renderItems(); // Re-render to show copied indicator
+
+        // Hide copied indicator after 1.5 seconds
+        setTimeout(function() {
+          copiedId = null;
+          renderItems();
+        }, 1500);
+      } else {
+        console.error('Fallback copy was unsuccessful');
+      }
+    } catch (err) {
+      console.error('Fallback: Oops, unable to copy', err);
+    }
+
+    document.body.removeChild(textArea);
+
+    // If fallback didn't work, try the modern approach
+    if (!successful) {
+      navigator.clipboard.writeText(item.content)
+        .then(function() {
+          copiedId = item.id;
+          renderItems();
+
+          setTimeout(function() {
+            copiedId = null;
+            renderItems();
+          }, 1500);
+        })
+        .catch(function(err) {
+          console.error('Clipboard API error:', err);
+        });
+    }
   });
 
   return itemElement;
@@ -414,40 +530,25 @@ function startTipRotation() {
   tipRotationInterval = setInterval(() => {
     currentTipIndex = (currentTipIndex + 1) % tips.length;
 
-    // Animate tip change
+    // Animate tip change - current tip fades up and out
     tipText.style.opacity = '0';
-    tipText.style.transform = 'translateY(-5px)';
+    tipText.style.transform = 'translateY(-20px)';
+    tipText.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
 
     setTimeout(() => {
+      // Prepare new tip to enter from below
+      tipText.style.transition = 'none';
+      tipText.style.transform = 'translateY(20px)';
       tipText.textContent = tips[currentTipIndex];
-      tipText.style.opacity = '1';
-      tipText.style.transform = 'translateY(0)';
+
+      // Small delay before animating in
+      setTimeout(() => {
+        tipText.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        tipText.style.opacity = '1';
+        tipText.style.transform = 'translateY(0)';
+      }, 20);
     }, 300);
   }, 7000);
-}
-
-// Copy content to clipboard
-async function copyToClipboard(content, id) {
-  try {
-    await navigator.clipboard.writeText(content);
-
-    // Show copied indicator
-    copiedId = id;
-    renderItems(); // Re-render to show the copied indicator
-
-    // Hide after 2 seconds
-    setTimeout(() => {
-      copiedId = null;
-      renderItems();
-    }, 2000);
-
-    // Close widget after small delay
-    setTimeout(() => {
-      closeWidget();
-    }, 1000);
-  } catch (error) {
-    console.error('Failed to copy to clipboard:', error);
-  }
 }
 
 // Toggle pin status of an item
@@ -469,10 +570,22 @@ async function togglePin(id) {
     // Update pin status
     item.isPinned = !item.isPinned;
 
-    // Sort items
+    // If pinned, update pinTimestamp to current time
+    if (item.isPinned) {
+      item.pinTimestamp = Date.now();
+    } else {
+      item.pinTimestamp = 0;
+    }
+
+    // Sort items: pinned first (sorted by pin timestamp), then unpinned by timestamp
     items.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
+      if (a.isPinned && b.isPinned) {
+        // For pinned items, sort by pin timestamp (most recent first)
+        return (b.pinTimestamp || 0) - (a.pinTimestamp || 0);
+      }
+      // For unpinned items, sort by regular timestamp
       return b.timestamp - a.timestamp;
     });
 

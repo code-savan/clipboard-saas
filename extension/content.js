@@ -1,14 +1,14 @@
 // Create and inject the floating button and widget container
-function createFloatingElements() {
-  // Check if button should be hidden according to user preferences
-  chrome.storage.local.get(['settings'], (result) => {
-    const settings = result.settings || {};
+async function createFloatingElements() {
+  try {
+    // Check if button should be hidden according to user preferences
+    const { settings = {} } = await chrome.storage.local.get('settings');
     if (settings.hideFloatingButton) {
       return; // Don't create the button if user has disabled it
     }
 
     // Don't add multiple buttons to the same page
-    if (document.querySelector('.clipboard-trigger')) {
+    if (document.querySelector('.clipboard-container')) {
       return;
     }
 
@@ -69,7 +69,9 @@ function createFloatingElements() {
 
     // Make container draggable
     makeContainerDraggable(container, button);
-  });
+  } catch (error) {
+    console.error('Error creating floating elements:', error);
+  }
 }
 
 // Toggle widget visibility and load content
@@ -316,59 +318,45 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === 'toggleFloatingButton') {
-    const container = document.querySelector('.clipboard-container');
-    if (container && message.hide) {
-      container.remove();
-    } else if (!container && !message.hide) {
-      createFloatingElements();
-    }
-  } else if (message.action === 'toggleWidget') {
+// Listen for messages from the extension
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'toggleWidget') {
     const widgetContainer = document.querySelector('.clipboard-widget-container');
     if (widgetContainer) {
       toggleWidget(widgetContainer);
     }
-  } else if (message.action === 'forceCaptureClipboard') {
-    // Directly ask for clipboard content and force capture it
-    navigator.clipboard.readText().then(text => {
-      if (text && text.trim()) {
-        const currentUrl = window.location.href;
-        chrome.runtime.sendMessage({
-          action: 'clipboardEvent',
-          data: {
-            text: text,
-            url: currentUrl
-          }
-        });
-        // Notify of success
-        chrome.runtime.sendMessage({
-          action: 'clipboardCaptureResult',
-          success: true,
-          data: { text }
-        });
-      } else {
-        // Notify of empty clipboard
-        chrome.runtime.sendMessage({
-          action: 'clipboardCaptureResult',
-          success: false,
-          error: 'Clipboard is empty'
-        });
+  } else if (message.action === 'toggleFloatingButton') {
+    const container = document.querySelector('.clipboard-container');
+
+    console.log('Toggle floating button message received:', message.hide);
+
+    if (message.hide) {
+      // Hide the floating button
+      if (container) {
+        container.remove();
       }
-    }).catch(error => {
-      // Notify of error
-      chrome.runtime.sendMessage({
-        action: 'clipboardCaptureResult',
-        success: false,
-        error: error.message
-      });
-    });
+    } else {
+      // Show the floating button
+      if (!container) {
+        // Create the button immediately
+        createFloatingElements();
+      }
+    }
+
+    // Send response to confirm action
+    if (sendResponse) {
+      sendResponse({ success: true });
+    }
+  } else if (message.action === 'forceCaptureClipboard') {
+    // ... existing forceCaptureClipboard code ...
   }
+
+  // Return true to indicate we want to send a response asynchronously
+  return true;
 });
 
 // Initialize
-createFloatingElements();
+checkButtonVisibility();
 startClipboardMonitoring();
 
 // Add event listeners
@@ -400,3 +388,19 @@ window.addEventListener('message', (event) => {
     }
   }
 });
+
+// Function to check if the button should be visible and create it if needed
+async function checkButtonVisibility() {
+  try {
+    const { settings = {} } = await chrome.storage.local.get('settings');
+    const container = document.querySelector('.clipboard-container');
+
+    if (!settings.hideFloatingButton && !container) {
+      createFloatingElements();
+    } else if (settings.hideFloatingButton && container) {
+      container.remove();
+    }
+  } catch (error) {
+    console.error('Error checking button visibility:', error);
+  }
+}

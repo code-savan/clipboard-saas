@@ -80,19 +80,82 @@
     .label.text { background: rgba(16, 185, 129, 0.2); color: #064e3b; }
     .label.link { background: rgba(59, 130, 246, 0.2); color: #1e3a8a; }
     .label.image { background: rgba(139, 92, 246, 0.2); color: #4c1d95; }
+
+    /* Toggle switch styles */
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      margin: 15px 0;
+    }
+
+    .toggle-switch label {
+      margin-left: 10px;
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #e2e8f0;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #4f46e5;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
   </style>
 </head>
 <body>
-  <h1>Clipboard Extension Debug</h1>
+  <h1>Clipboard Extension Menu</h1>
 
   <div class="section">
     <h2>Status</h2>
     <div class="card">
       <div id="status">Loading...</div>
+      <div class="toggle-switch">
+        <label class="switch">
+          <input type="checkbox" id="widgetToggle">
+          <span class="slider"></span>
+        </label>
+        <label for="widgetToggle">Show Widget Icon</label>
+      </div>
     </div>
 
     <button id="refresh">Refresh Data</button>
-    <button id="copyTest">Copy Test Text</button>
     <button id="clearItems">Clear All Items</button>
   </div>
 
@@ -114,7 +177,7 @@
     <div class="card">
       <div id="clipboardTest">
         <p>Click the button below to test reading from clipboard:</p>
-        <button id="readClipboard">Read Clipboard</button>
+        <button id="readClipboard">Copy latest clipboard content</button>
         <div id="clipboardContent"></div>
       </div>
     </div>

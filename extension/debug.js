@@ -4,23 +4,79 @@ const itemCountEl = document.getElementById('itemCount');
 const itemsEl = document.getElementById('items');
 const settingsEl = document.getElementById('settings');
 const clipboardContentEl = document.getElementById('clipboardContent');
+const widgetToggle = document.getElementById('widgetToggle');
 
 // Buttons
 const refreshBtn = document.getElementById('refresh');
-const copyTestBtn = document.getElementById('copyTest');
 const clearItemsBtn = document.getElementById('clearItems');
 const readClipboardBtn = document.getElementById('readClipboard');
 
-// Create a new button for force capture
-const forceCaptureBtn = document.createElement('button');
-forceCaptureBtn.id = 'forceCapture';
-forceCaptureBtn.textContent = 'Force Capture Clipboard';
-refreshBtn.insertAdjacentElement('afterend', forceCaptureBtn);
-
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadData();
   setupListeners();
+
+  // Initialize widget toggle state
+  try {
+    const { settings = {} } = await chrome.storage.local.get('settings');
+    widgetToggle.checked = !settings.hideFloatingButton;
+    console.log('Widget toggle initialized:', widgetToggle.checked);
+  } catch (error) {
+    console.error('Error initializing widget toggle:', error);
+  }
+
+  // Add event listener for widget toggle
+  widgetToggle.addEventListener('change', async () => {
+    try {
+      console.log('Toggle changed to:', widgetToggle.checked);
+      const { settings = {} } = await chrome.storage.local.get('settings');
+      settings.hideFloatingButton = !widgetToggle.checked;
+
+      // First save the settings
+      await chrome.storage.local.set({ settings });
+
+      // Update all existing tabs
+      const tabs = await chrome.tabs.query({});
+      console.log(`Sending toggle message to ${tabs.length} tabs`);
+
+      const updatePromises = tabs
+        .filter(tab => tab.url && tab.url.startsWith('http'))
+        .map(tab => {
+          return new Promise(resolve => {
+            try {
+              chrome.tabs.sendMessage(
+                tab.id,
+                { action: 'toggleFloatingButton', hide: settings.hideFloatingButton },
+                response => {
+                  const success = response && response.success;
+                  console.log(`Tab ${tab.id}: ${success ? 'updated' : 'failed'}`);
+                  resolve(success);
+                }
+              );
+            } catch (err) {
+              console.log(`Could not update tab ${tab.id}: ${err?.message}`);
+              resolve(false);
+            }
+          });
+        });
+
+      // Wait for all tab updates to complete
+      await Promise.all(updatePromises);
+      console.log('All tabs updated');
+
+    } catch (error) {
+      console.error('Error updating widget visibility:', error);
+    }
+  });
+
+  // Listen for storage changes to keep toggle in sync
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.settings && changes.settings.newValue) {
+      const newSettings = changes.settings.newValue;
+      widgetToggle.checked = !newSettings.hideFloatingButton;
+      console.log('Widget toggle updated from storage:', widgetToggle.checked);
+    }
+  });
 
   // Listen for changes to storage
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -113,19 +169,6 @@ async function loadData() {
 function setupListeners() {
   refreshBtn.addEventListener('click', loadData);
 
-  copyTestBtn.addEventListener('click', async () => {
-    const testText = `Test clipboard text ${new Date().toLocaleTimeString()}`;
-    try {
-      await navigator.clipboard.writeText(testText);
-      clipboardContentEl.innerHTML = `<p style="color: green">Copied to clipboard: "${testText}"</p>`;
-
-      // Refresh after 2 seconds to see if item was captured
-      setTimeout(loadData, 2000);
-    } catch (error) {
-      clipboardContentEl.innerHTML = `<p style="color: red">Error copying: ${error.message}</p>`;
-    }
-  });
-
   clearItemsBtn.addEventListener('click', async () => {
     if (confirm('Are you sure you want to clear all clipboard items?')) {
       try {
@@ -146,30 +189,6 @@ function setupListeners() {
       `;
     } catch (error) {
       clipboardContentEl.innerHTML = `<p style="color: red">Error reading clipboard: ${error.message}</p>`;
-    }
-  });
-
-  // Force clipboard capture from active tab
-  forceCaptureBtn.addEventListener('click', async () => {
-    try {
-      // Get the active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-      if (tab && tab.id) {
-        statusEl.innerHTML += `<p>Attempting force capture from: ${tab.url}</p>`;
-
-        // Send message to the content script on active tab
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'forceCaptureClipboard'
-        });
-
-        // Refresh after 2 seconds to see if capture succeeded
-        setTimeout(loadData, 2000);
-      } else {
-        statusEl.innerHTML += `<p style="color: red">No active tab found to capture from</p>`;
-      }
-    } catch (error) {
-      statusEl.innerHTML += `<p style="color: red">Error forcing capture: ${error.message}</p>`;
     }
   });
 }
