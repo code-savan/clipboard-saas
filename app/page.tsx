@@ -159,7 +159,7 @@ export default function Home() {
                 transition={{ duration: 0.5 }}
                 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 leading-tight"
               >
-                Instant <span className="text-indigo-600 dark:text-indigo-500">ClipBoard</span>: <br/>
+                Instant <span className="text-indigo-600 dark:text-indigo-500">ClipBoard</span> <br/>
                 Your Smart Clipboard History
               </motion.h1>
 
