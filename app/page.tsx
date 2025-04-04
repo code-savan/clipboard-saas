@@ -228,20 +228,20 @@ export default function Home() {
               )}
                 </div>
 
-                <div className="md:w-1/2 w-full max-w-[85%] sm:max-w-md md:max-w-full mx-auto">
+                <div className="md:w-1/2 w-full max-w-full mx-auto">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden md:w-[450px] w-full"
               >
                 <div className="p-2">
                   <Image
-                    src="https://placehold.co/600x400/5046e5/FFFFFF/png?text=ClipBoard+Demo"
+                    src="/hero.png"
                     alt="Instant ClipBoard Demo"
                     className="rounded-lg w-full"
-                    width={600}
-                    height={400}
+                    width={450}
+                    height={500}
                   />
                 </div>
               </motion.div>
