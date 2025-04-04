@@ -20,7 +20,7 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 relative">
         <Link href="/" className="flex items-center gap-2">
           {/* <Clipboard className="h-6 w-6 text-indigo-600 dark:text-indigo-500" /> */}
@@ -130,7 +130,8 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full left-0 right-0 md:hidden px-4 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md z-20"
+            className="absolute top-full left-0 right-0 md:hidden px-4 py-4
+            bg-white dark:bg-slate-900 shadow-md z-20"
           >
             <nav className="flex flex-col space-y-4 container mx-auto">
               {isHome ? (
