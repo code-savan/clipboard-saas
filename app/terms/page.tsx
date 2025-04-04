@@ -55,6 +55,9 @@ export default function TermsOfService() {
           Our Privacy Policy explains how we collect, use, and protect your personal information. By using our services, you consent to our collection and use of data as described in our Privacy Policy.
         </p>
         <p>
+          When you access our services, we collect certain information about you, including your email address, device information (such as browser type and operating system), and geographic location information (such as your country). This information helps us provide a better service and comply with data protection requirements.
+        </p>
+        <p>
           We comply with applicable data protection laws, including the General Data Protection Regulation (GDPR) for users in the European Union and the California Consumer Privacy Act (CCPA) for California residents.
         </p>
 

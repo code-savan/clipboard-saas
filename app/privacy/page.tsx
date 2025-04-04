@@ -38,7 +38,8 @@ export default function PrivacyPolicy() {
         <h3 className="text-lg font-medium mt-4 mb-2">2.2 Information We Collect Automatically</h3>
         <ul className="list-disc pl-6 my-4">
           <li>Usage information about how you interact with our services</li>
-          <li>Device information such as IP address, browser type, and operating system</li>
+          <li>Device information such as IP address, browser type, operating system, and device type</li>
+          <li>Geographic location information such as your country</li>
           <li>Cookies and similar tracking technologies</li>
         </ul>
 

@@ -26,6 +26,8 @@ export interface User {
   password?: string; // Password field that can be null
   is_admin?: boolean;
   is_super_admin?: boolean;
+  device?: string;
+  country?: string;
   created_at?: string;
 }
 
@@ -145,7 +147,7 @@ export const likeForumPost = async (id: string): Promise<ForumPost | null> => {
 // User management
 // This function should only be called when a user explicitly requests access to the system
 // (e.g. from the landing page form) - not from forum posts or other email collections
-export const createUser = async (email: string): Promise<boolean> => {
+export const createUser = async (email: string, device?: string, country?: string): Promise<boolean> => {
   try {
     // Check if user already exists
     const { data: existingUsers } = await publicSupabase
@@ -157,11 +159,24 @@ export const createUser = async (email: string): Promise<boolean> => {
     if (!existingUsers || existingUsers.length === 0) {
       const { error } = await publicSupabase
         .from('users')
-        .insert([{ email }]);
+        .insert([{ email, device, country }]);
 
       if (error) {
         console.error('Error creating user:', error);
         return false;
+      }
+    } else {
+      // If user exists, update device and country if provided
+      if (device || country) {
+        const { error } = await publicSupabase
+          .from('users')
+          .update({ device, country })
+          .eq('email', email);
+
+        if (error) {
+          console.error('Error updating user:', error);
+          return false;
+        }
       }
     }
 

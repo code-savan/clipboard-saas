@@ -1,0 +1,52 @@
+✂️ Instant ClipBoard - Your Smart Clipboard History ✂️
+
+Never lose important text, links, or code snippets again! Instant ClipBoard remembers everything you copy so you don't have to.
+
+🌟 WHAT DOES IT DO? 🌟
+
+Instant ClipBoard keeps track of everything you copy to your clipboard, making it easy to find and reuse later. No more copying the same thing twice or losing important information!
+
+✨ MAIN FEATURES ✨
+
+• 📋 Saves your complete clipboard history
+• 🔍 Quick search to find any copied text
+• 📱 Works on all your devices with the same browser
+• 🔄 Double-tap the Tab key to open the clipboard panel
+• 🔒 Your data stays private and secure
+• 🌙 Dark mode support for late-night work
+• 📊 Organizes your clips by type (text, links, code)
+
+🛠️ POWER USER FEATURES 🛠️
+
+• 📌 Pin important clips to keep them at the top
+• 🗑️ Easy deletion of individual clips or clear history
+• ⌨️ Keyboard shortcuts for quick access
+• 📝 Edit clips directly in the extension
+• 🔤 Formatting options for code snippets
+
+🔧 DEBUG MENU 🔧
+
+For the curious minds! Our extension includes a hidden debug menu that lets you:
+
+• 🔬 See detailed info about how the extension works
+• 🧪 Test different features in a safe environment
+• 📊 View performance statistics
+• 💾 Export your clipboard data
+• ⚙️ Access advanced settings
+
+💡 HOW TO USE 💡
+
+1. Install the extension
+2. Copy text normally (Ctrl+C or Command+C)
+3. Double-tap the Tab key or click the extension icon
+4. Click on any saved clip to copy it again
+5. That's it! Super simple!
+
+Perfect for:
+• 👩‍💻 Programmers who copy code snippets
+• 📝 Writers working with multiple text pieces
+• 🎓 Students doing research
+• 💼 Office workers handling lots of information
+• 🛒 Online shoppers saving product details
+
+Download Instant ClipBoard today and never lose an important copy again! Your clipboard just got a whole lot smarter. 🚀

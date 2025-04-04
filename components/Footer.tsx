@@ -14,23 +14,23 @@ const Footer = () => {
         <div className="flex items-center mb-6 md:mb-0 gap-2">
           {/* <Clipboard className="h-6 w-6 text-indigo-400 mr-2" /> */}
           <div>
-            {resolvedTheme === 'dark' ? (
+            {/* {resolvedTheme === 'dark' ? ( */}
               <Image
-                src="/logo-dark.png"
+                src="/logo.png"
                 alt="Instant ClipBoard Logo"
                 className="h-7 w-7"
                 width={28}
                 height={28}
               />
-            ) : (
-              <Image
-                src="/logo-light.png"
-                alt="Instant ClipBoard Logo"
-                className="h-7 w-7"
-                width={28}
-                height={28}
-              />
-            )}
+            {/* // ) : ( */}
+               {/* <Image */}
+            {/* //     src="/logo-light.png"
+            //     alt="Instant ClipBoard Logo"
+            //     className="h-7 w-7"
+            //     width={28}
+            //     height={28}
+            //   />
+            // )} */}
           </div>
           <span className="text-xl font-semibold text-white">Instant ClipBoard</span>
         </div>

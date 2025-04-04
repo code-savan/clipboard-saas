@@ -48,7 +48,20 @@ export default function Home() {
 
     try {
       // Save to localStorage for widget access
-    localStorage.setItem('userEmail', email);
+      localStorage.setItem('userEmail', email);
+
+      // Get device information
+      const device = navigator.userAgent;
+
+      // Try to get country information using a simple IP-based API
+      let country = '';
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
+        country = data.country_name || '';
+      } catch (err) {
+        console.warn('Could not get country information:', err);
+      }
 
       // First try to save the email
       const emailResult = await saveEmail(email, 'hero');
@@ -57,17 +70,17 @@ export default function Home() {
         throw new Error('Failed to save email');
       }
 
-      // Then try to create the user record
-      const userResult = await createUser(email);
+      // Then try to create the user record with device and country
+      const userResult = await createUser(email, device, country);
 
       if (!userResult) {
         console.warn('User creation might have failed, but continuing...');
       }
 
-    setIsWidgetUnlocked(true);
-    toast({
-      title: 'Welcome!',
-      description: 'Your clipboard organizer is now active.',
+      setIsWidgetUnlocked(true);
+      toast({
+        title: 'Welcome!',
+        description: 'Your clipboard organizer is now active.',
       });
     } catch (error) {
       console.error('Error during submission:', error);

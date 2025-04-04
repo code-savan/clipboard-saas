@@ -6,16 +6,49 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, MailIcon, MessageSquare, LogOut, UserPlus, Shield, X, Star, Check, Award, Menu } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Loader2, MailIcon, MessageSquare, LogOut, UserPlus, Shield, X, Star, Check, Award, Menu,
+  Info, AlertCircle, Trash2, Eye, Download, MoreHorizontal
+} from 'lucide-react';
 import { validateEmail } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { Admin } from '@/update_db_types';
 import type { Testimonial } from '@/update_db_types';
-import type { EmailSubscription, ForumPost } from '@/lib/db';
+import type { EmailSubscription, ForumPost, User } from '@/lib/db';
 import { Toggle } from '@/components/ui/toggle';
 import { Badge } from '@/components/ui/badge';
 import { getEmails, getForumPosts } from '@/lib/db';
 import { toast } from 'sonner';
+import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Prevent relying on server-side API routes
 // const checkAdminStatus = async () => {
@@ -70,13 +103,23 @@ export default function AdminDashboard() {
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [adminUsers, setAdminUsers] = useState<Admin[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [selectAllUsers, setSelectAllUsers] = useState(false);
+  const [selectAllEmails, setSelectAllEmails] = useState(false);
+  const [isDeleteSelectedUsersDialogOpen, setIsDeleteSelectedUsersDialogOpen] = useState(false);
+  const [isDeleteSelectedEmailsDialogOpen, setIsDeleteSelectedEmailsDialogOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentAdmin, setCurrentAdmin] = useState<{email: string, isSuperAdmin: boolean} | null>(null);
   const [currentTab, setCurrentTab] = useState('users');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -191,7 +234,7 @@ export default function AdminDashboard() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, created_at')
+        .select('id, email, device, country, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -364,6 +407,241 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleViewUser = (user: User) => {
+    setSelectedUser(user);
+    setIsUserModalOpen(true);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setUserToDelete(userId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    try {
+      if (!userToDelete) return;
+
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userToDelete);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update state
+      setUsers(users.filter(user => user.id !== userToDelete));
+      toast('User deleted successfully');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast('Failed to delete user');
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const getDeviceType = (userAgent?: string): string => {
+    if (!userAgent) return 'Unknown';
+
+    // Simplified device detection
+    if (/iPhone|iPad|iPod/i.test(userAgent)) return 'iOS';
+    if (/Android/i.test(userAgent)) return 'Android';
+    if (/Windows Phone/i.test(userAgent)) return 'Windows Phone';
+    if (/Windows/i.test(userAgent)) return 'Windows';
+    if (/Macintosh|Mac OS X/i.test(userAgent)) return 'Mac';
+    if (/Linux/i.test(userAgent)) return 'Linux';
+    if (/CrOS/i.test(userAgent)) return 'ChromeOS';
+
+    return 'Other';
+  };
+
+  // Handle select all users
+  const handleSelectAllUsers = (checked: boolean) => {
+    setSelectAllUsers(checked);
+    if (checked) {
+      setSelectedUsers(users.map(user => user.id || '').filter(id => id !== ''));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  // Handle select all emails
+  const handleSelectAllEmails = (checked: boolean) => {
+    setSelectAllEmails(checked);
+    if (checked) {
+      setSelectedEmails(emails.map(email => email.id || '').filter(id => id !== ''));
+    } else {
+      setSelectedEmails([]);
+    }
+  };
+
+  // Handle select user
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedUsers([...selectedUsers, userId]);
+    } else {
+      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+    }
+  };
+
+  // Handle select email
+  const handleSelectEmail = (emailId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedEmails([...selectedEmails, emailId]);
+    } else {
+      setSelectedEmails(selectedEmails.filter(id => id !== emailId));
+    }
+  };
+
+  // Handle delete selected users
+  const handleDeleteSelectedUsers = async () => {
+    try {
+      if (selectedUsers.length === 0) return;
+
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .in('id', selectedUsers);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update state
+      setUsers(users.filter(user => !selectedUsers.includes(user.id || '')));
+      setSelectedUsers([]);
+      setSelectAllUsers(false);
+      toast(`${selectedUsers.length} users deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      toast('Failed to delete users');
+    } finally {
+      setIsDeleteSelectedUsersDialogOpen(false);
+    }
+  };
+
+  // Handle delete selected emails
+  const handleDeleteSelectedEmails = async () => {
+    try {
+      if (selectedEmails.length === 0) return;
+
+      const { error } = await supabase
+        .from('emails')
+        .delete()
+        .in('id', selectedEmails);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update state
+      setEmails(emails.filter(email => !selectedEmails.includes(email.id || '')));
+      setSelectedEmails([]);
+      setSelectAllEmails(false);
+      toast(`${selectedEmails.length} emails deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting emails:', error);
+      toast('Failed to delete emails');
+    } finally {
+      setIsDeleteSelectedEmailsDialogOpen(false);
+    }
+  };
+
+  // Export users as CSV
+  const exportUsers = () => {
+    try {
+      // Create CSV content
+      const headers = ['Email', 'Device', 'Country', 'Joined'];
+      const csvRows = [headers.join(',')];
+
+      users.forEach(user => {
+        const date = user.created_at
+          ? new Date(user.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          : 'Unknown';
+
+        const row = [
+          `"${user.email}"`,
+          `"${user.device || 'Unknown'}"`,
+          `"${user.country || 'Unknown'}"`,
+          `"${date}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast('Users exported successfully');
+    } catch (error) {
+      console.error('Error exporting users:', error);
+      toast('Failed to export users');
+    }
+  };
+
+  // Export emails as CSV
+  const exportEmails = () => {
+    try {
+      // Create CSV content
+      const headers = ['Email', 'Source', 'Date'];
+      const csvRows = [headers.join(',')];
+
+      emails.forEach(email => {
+        const date = email.created_at
+          ? new Date(email.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          : 'Unknown';
+
+        const row = [
+          `"${email.email}"`,
+          `"${email.source || 'Unknown'}"`,
+          `"${date}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `emails_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast('Emails exported successfully');
+    } catch (error) {
+      console.error('Error exporting emails:', error);
+      toast('Failed to export emails');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -378,7 +656,10 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className="hidden md:flex w-64 flex-col border-r bg-background">
         <div className="p-6">
+            <div className='flex gap-2 items-center'>
+            <Image src={`/logo.png`} alt='logo' width={25} height={25} />
           <h2 className="text-lg font-semibold">Instant ClipBoard</h2>
+            </div>
           <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
         <div className="flex-1 space-y-1 p-2">
@@ -460,27 +741,113 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               <TabsContent value="users" className="mt-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Registered Users</CardTitle>
-                    <CardDescription>Manage user accounts and permissions</CardDescription>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Registered Users</CardTitle>
+                      <CardDescription>Manage user accounts and permissions</CardDescription>
+                    </div>
+                    <div className="flex space-x-2">
+                      {selectedUsers.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsDeleteSelectedUsersDialogOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete Selected ({selectedUsers.length})
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4 mr-1" />
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={exportUsers}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export as CSV
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {users.length === 0 ? (
                       <p className="text-center py-8 text-muted-foreground">No registered users yet.</p>
                     ) : (
-                      <div className="border rounded-md">
-                        <div className="grid grid-cols-2 font-medium p-3 border-b bg-muted/50">
-                          <div>Email</div>
-                          <div>Joined</div>
-                        </div>
-                        <div className="divide-y">
-                          {users.map((user) => (
-                            <div key={user.id} className="grid grid-cols-2 p-3">
-                              <div className="font-medium">{user.email}</div>
-                              <div>{new Date(user.created_at || '').toLocaleString()}</div>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="border rounded-md overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="p-3 text-left">
+                                <div className="flex items-center">
+                                  <Checkbox
+                                    checked={selectAllUsers}
+                                    onCheckedChange={handleSelectAllUsers}
+                                    className="mr-2"
+                                  />
+                                  <span>S/N</span>
+                                </div>
+                              </th>
+                              <th className="p-3 text-left">Email</th>
+                              <th className="p-3 text-left">Device</th>
+                              <th className="p-3 text-left">Country</th>
+                              <th className="p-3 text-left">Joined</th>
+                              <th className="p-3 text-left">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {users.map((user, index) => (
+                              <tr key={user.id} className="hover:bg-muted/30">
+                                <td className="p-3">
+                                  <div className="flex items-center">
+                                    <Checkbox
+                                      checked={user.id ? selectedUsers.includes(user.id) : false}
+                                      onCheckedChange={(checked) => user.id && handleSelectUser(user.id, checked === true)}
+                                      className="mr-3"
+                                    />
+                                    {index + 1}
+                                  </div>
+                                </td>
+                                <td className="p-3 font-medium max-w-[200px] truncate">{user.email}</td>
+                                <td className="p-3 max-w-[150px] truncate">{getDeviceType(user.device) || 'Unknown'}</td>
+                                <td className="p-3 max-w-[150px] truncate">{user.country || 'Unknown'}</td>
+                                <td className="p-3 max-w-[150px] truncate">
+                                  {user.created_at
+                                    ? new Date(user.created_at).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })
+                                    : 'Unknown'}
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewUser(user)}
+                                    >
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => user.id && handleDeleteUser(user.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </CardContent>
@@ -489,30 +856,90 @@ export default function AdminDashboard() {
 
               <TabsContent value="emails" className="mt-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Email Subscriptions</CardTitle>
-                    <CardDescription>Newsletter and updates subscribers</CardDescription>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Email Subscriptions</CardTitle>
+                      <CardDescription>Newsletter and updates subscribers</CardDescription>
+                    </div>
+                    <div className="flex space-x-2">
+                      {selectedEmails.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsDeleteSelectedEmailsDialogOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete Selected ({selectedEmails.length})
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4 mr-1" />
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={exportEmails}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export as CSV
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {emails.length === 0 ? (
                       <p className="text-center py-8 text-muted-foreground">No email subscriptions yet.</p>
                     ) : (
-                      <div className="border rounded-md">
-                        <div className="grid grid-cols-3 font-medium p-3 border-b bg-muted/50">
-                          <div>Email</div>
-                          <div>Source</div>
-                          <div>Date</div>
-                        </div>
-                        <div className="divide-y">
-                          {emails.map((sub) => (
-                            <div key={sub.id} className="grid grid-cols-3 p-3">
-                              <div className="font-medium">{sub.email}</div>
-                              <div>{sub.source}</div>
-                              <div>{new Date(sub.created_at || '').toLocaleString()}</div>
-                            </div>
-                          ))}
-                        </div>
-                    </div>
+                      <div className="border rounded-md overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="p-3 text-left">
+                                <div className="flex items-center">
+                                  <Checkbox
+                                    checked={selectAllEmails}
+                                    onCheckedChange={handleSelectAllEmails}
+                                    className="mr-2"
+                                  />
+                                  <span>S/N</span>
+                                </div>
+                              </th>
+                              <th className="p-3 text-left">Email</th>
+                              <th className="p-3 text-left">Source</th>
+                              <th className="p-3 text-left">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {emails.map((sub, index) => (
+                              <tr key={sub.id} className="hover:bg-muted/30">
+                                <td className="p-3">
+                                  <div className="flex items-center">
+                                    <Checkbox
+                                      checked={sub.id ? selectedEmails.includes(sub.id) : false}
+                                      onCheckedChange={(checked) => sub.id && handleSelectEmail(sub.id, checked === true)}
+                                      className="mr-3"
+                                    />
+                                    {index + 1}
+                                  </div>
+                                </td>
+                                <td className="p-3 font-medium max-w-[250px] truncate">{sub.email}</td>
+                                <td className="p-3 max-w-[150px] truncate">{sub.source}</td>
+                                <td className="p-3 max-w-[150px] truncate">
+                                  {sub.created_at
+                                    ? new Date(sub.created_at).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })
+                                    : 'Unknown'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -742,6 +1169,152 @@ export default function AdminDashboard() {
             </Tabs>
         </div>
       </div>
+
+      {/* User details modal */}
+      <Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about this user
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUser && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold">Email:</div>
+                <div className="col-span-2 break-all">{selectedUser.email}</div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold">Device:</div>
+                <div className="col-span-2 break-all">
+                  <div>{getDeviceType(selectedUser.device)}</div>
+                  {selectedUser.device && <div className="text-xs text-muted-foreground mt-1">{selectedUser.device}</div>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold">Country:</div>
+                <div className="col-span-2">{selectedUser.country || 'Unknown'}</div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold">Joined:</div>
+                <div className="col-span-2">
+                  {selectedUser.created_at
+                    ? new Date(selectedUser.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : 'Unknown'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold">Admin Status:</div>
+                <div className="col-span-2">
+                  {selectedUser.is_admin ? (
+                    <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:border-indigo-700">
+                      Admin User
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Regular User</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedUser?.id) {
+                  setIsUserModalOpen(false);
+                  handleDeleteUser(selectedUser.id);
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete User
+            </Button>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user
+              account and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete selected users confirmation dialog */}
+      <AlertDialog open={isDeleteSelectedUsersDialogOpen} onOpenChange={setIsDeleteSelectedUsersDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {selectedUsers.length}
+              user accounts and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSelectedUsers}
+              className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+            >
+              Delete {selectedUsers.length} Users
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete selected emails confirmation dialog */}
+      <AlertDialog open={isDeleteSelectedEmailsDialogOpen} onOpenChange={setIsDeleteSelectedEmailsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {selectedEmails.length}
+              email subscriptions and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSelectedEmails}
+              className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+            >
+              Delete {selectedEmails.length} Emails
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

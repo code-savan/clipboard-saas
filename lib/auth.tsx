@@ -145,9 +145,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Save email for marketing
             await saveEmail(email, 'signup');
 
+            // Get device information
+            const device = navigator.userAgent;
+
+            // Try to get country information using a simple IP-based API
+            let country = '';
+            try {
+              const response = await fetch('https://ipapi.co/json/');
+              const data = await response.json();
+              country = data.country_name || '';
+            } catch (err) {
+              console.warn('Could not get country information:', err);
+            }
+
             // Create user - this is only place we should create users since signUp
             // represents an explicit request for access
-            await createUser(email);
+            await createUser(email, device, country);
           } catch (error) {
             console.error('Error saving user data after signup:', error);
             // Continue anyway since sign-up succeeded
