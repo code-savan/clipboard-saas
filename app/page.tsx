@@ -233,7 +233,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-900 overflow-hidden md:w-[450px] w-full float-right"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-900 overflow-hidden lg:w-[450px] w-full float-right"
               >
                 <div className="p-2">
                   <Image
