@@ -151,7 +151,7 @@ export default function Home() {
           {/* Hero Section */}
       <section className="relative py-12 md:py-20 lg:py-32 overflow-hidden bg-gradient-to-b from-white to-slate-50 dark:from-slate-950 dark:to-slate-900">
         <div className="container mx-auto px-4 sm:px-6">
-              <div className="flex flex-col md:flex-row items-center">
+              <div className="flex flex-col md:flex-row items-center justify-between ">
                 <div className="md:w-1/2 md:pr-12 mb-10 md:mb-0">
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
@@ -233,7 +233,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden md:w-[450px] w-full"
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden md:w-[450px] w-full float-right"
               >
                 <div className="p-2">
                   <Image
