@@ -79,9 +79,14 @@ export default function Home() {
 
       setIsWidgetUnlocked(true);
       toast({
-        title: 'Welcome!',
-        description: 'Your clipboard organizer is now active.',
+        title: 'Success!',
+        description: 'Redirecting you to the Chrome Web Store...',
       });
+
+      // Redirect to Chrome Web Store after a short delay (1.5 seconds)
+      setTimeout(() => {
+        window.location.href = 'https://chromewebstore.google.com/detail/instant-clipboard/ioepkbbfackkjemmhafieepbiliagafc';
+      }, 1500);
     } catch (error) {
       console.error('Error during submission:', error);
       // Even if there's an error with backend, let the user proceed in demo mode
@@ -90,8 +95,13 @@ export default function Home() {
 
       toast({
         title: 'Demo Mode Activated',
-        description: 'Your clipboard organizer is now active in demo mode.',
+        description: 'Redirecting you to the Chrome Web Store...',
       });
+
+      // Still redirect to Chrome Web Store after a short delay
+      setTimeout(() => {
+        window.location.href = 'https://chromewebstore.google.com/detail/instant-clipboard/ioepkbbfackkjemmhafieepbiliagafc';
+      }, 1500);
     } finally {
       setIsSubmitting(false);
     }

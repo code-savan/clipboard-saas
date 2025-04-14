@@ -1,0 +1,15 @@
+Hello Chrome Web Store Review Team,
+
+Thank you for your feedback on our Instant ClipBoard extension. We have addressed the permission issue mentioned in the rejection notice.
+
+Changes made:
+- Removed the "scripting" permission from the manifest.json file
+- Confirmed that this permission was not being actively used by the extension
+- No functionality has been impacted by this change
+
+We now only request the permissions necessary for our extension's current features. The updated package has been submitted for your review.
+
+Thank you for your attention to this matter. We look forward to having our extension approved and available in the Chrome Web Store.
+
+Best regards,
+Instant ClipBoard Team
