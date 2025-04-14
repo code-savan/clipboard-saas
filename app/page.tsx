@@ -7,7 +7,7 @@ import { Clipboard, Check, ArrowRight, Star, Zap, Clock, Shield, Sparkles, Messa
 import { useToast } from '@/components/ui/use-toast';
 import { validateEmail } from '@/lib/utils';
 import { saveEmail, createUser } from '@/lib/db';
-import ClipboardWidget from '@/components/ClipboardWidget';
+// import ClipboardWidget from '@/components/ClipboardWidget';  // Temporarily commented out
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ModeToggle } from '@/components/ModeToggle';
@@ -412,6 +412,7 @@ export default function Home() {
       </Element>
 
       {/* Demo Section - If unlocked */}
+      {/* Temporarily hidden
       {isWidgetUnlocked && (
         <section className="py-12 sm:py-16 md:py-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
           <div className="container mx-auto px-4 sm:px-6">
@@ -448,6 +449,7 @@ export default function Home() {
           </div>
         </section>
       )}
+      */}
 
       {/* Testimonials section */}
       <Element name="testimonials">
@@ -593,7 +595,9 @@ export default function Home() {
       {/* Footer */}
       <Footer />
 
+      {/* Temporarily hidden
       {isWidgetUnlocked && <ClipboardWidget />}
+      */}
     </div>
   );
 }
