@@ -85,14 +85,18 @@ export default function MobilePWA() {
 
     setIsLoading(false);
 
+    // Keep track of last clipboard content to prevent duplicates
+    let lastClipboardContent = '';
+
     // Set up clipboard monitoring
     const checkClipboard = async () => {
       try {
         const text = await navigator.clipboard.readText();
-        if (text && text.trim() !== '') {
+        if (text && text.trim() !== '' && text !== lastClipboardContent) {
           // Check if this text is already in the items
           const exists = items.some(item => item.content === text);
           if (!exists) {
+            lastClipboardContent = text;
             addNewItem(text);
           }
         }
@@ -108,7 +112,7 @@ export default function MobilePWA() {
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [items]); // Add items dependency to track changes for duplicate checking
 
   // Save items to localStorage whenever they change
   useEffect(() => {
@@ -285,22 +289,27 @@ export default function MobilePWA() {
     });
   };
 
-  const formatTimestamp = (date: Date) => {
+  const formatDetailedTimestamp = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffDays > 0) {
-      return `${diffDays}d ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours}h ago`;
-    } else if (diffMins > 0) {
-      return `${diffMins}m ago`;
+    if (diffSecs < 5) {
+      return "just now";
+    } else if (diffSecs < 60) {
+      return `${diffSecs} seconds ago`;
+    } else if (diffSecs < 120) {
+      return "1 minute ago";
+    } else if (diffSecs < 3600) {
+      return `${Math.floor(diffSecs / 60)} minutes ago`;
+    } else if (diffSecs < 7200) {
+      return "1 hour ago";
+    } else if (diffSecs < 86400) {
+      return `${Math.floor(diffSecs / 3600)} hours ago`;
+    } else if (diffSecs < 172800) {
+      return "1 day ago";
     } else {
-      return 'Just now';
+      return `${Math.floor(diffSecs / 86400)} days ago`;
     }
   };
 
@@ -421,7 +430,7 @@ export default function MobilePWA() {
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center">
             <Clock className="h-3 w-3 mr-1" />
-            {formatTimestamp(item.timestamp)}
+            {formatDetailedTimestamp(item.timestamp)}
           </span>
         </div>
 
@@ -492,6 +501,102 @@ export default function MobilePWA() {
     ));
   };
 
+  // Render history items (simpler view)
+  const renderHistoryItems = () => {
+    if (isLoading) {
+      return Array(5).fill(0).map((_, index) => (
+        <div key={index} className="mb-3 p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+          <Skeleton className="h-5 w-full mb-2" />
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        </div>
+      ));
+    }
+
+    if (items.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Clock className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-3" />
+          <h3 className="text-base font-medium text-slate-700 dark:text-slate-300 mb-2">No history</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Your clipboard history will appear here
+          </p>
+        </div>
+      );
+    }
+
+    return sortedItems.map((item) => (
+      <motion.div
+        key={item.id}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="mb-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+      >
+        <div className="text-sm mb-1 text-slate-900 dark:text-slate-100 line-clamp-1">
+          {item.content}
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {formatDetailedTimestamp(item.timestamp)}
+          </span>
+          <div className="flex space-x-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => copyToClipboard(item.content)}
+              className="h-7 w-7 p-0 rounded-full"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setExpandedItem(item.id)}
+              className="h-7 w-7 p-0 rounded-full"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    ));
+  };
+
+  // Render profile view
+  const renderProfileView = () => {
+    return (
+      <div className="py-8 px-4">
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
+            <User className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <h2 className="text-xl font-semibold mb-1">User Profile</h2>
+          {email ? (
+            <p className="text-slate-600 dark:text-slate-300">{email}</p>
+          ) : (
+            <p className="text-slate-500 dark:text-slate-400">Not logged in</p>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="font-medium mb-2">App Information</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+              Instant ClipBoard PWA Version 1.0
+            </p>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500 dark:text-slate-400">Total clips</span>
+              <span className="font-medium">{items.length}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* Header */}
@@ -526,55 +631,61 @@ export default function MobilePWA() {
                 </Button>
               </>
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsMultiSelectMode(true)}
-                className="h-8"
-              >
-                Select
-              </Button>
+              activeTab !== 'profile' && activeTab !== 'history' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsMultiSelectMode(true)}
+                  className="h-8"
+                >
+                  Select
+                </Button>
+              )
             )}
           </div>
         </div>
 
-        {/* Search input */}
-        <div className="mt-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search clipboard..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-slate-50 dark:bg-slate-800 h-10"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full rounded-l-none"
-                onClick={() => setSearchQuery('')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+        {/* Search input - only show for main tabs */}
+        {activeTab !== 'profile' && activeTab !== 'history' && (
+          <div className="mt-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search clipboard..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-slate-50 dark:bg-slate-800 h-10"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full rounded-l-none"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Tabs */}
-        <div className="mt-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full justify-start overflow-x-auto pb-1 scrollbar-hide">
-              <TabsTrigger value="all" className="text-xs px-4 py-2">All</TabsTrigger>
-              <TabsTrigger value="pinned" className="text-xs px-4 py-2">Pinned</TabsTrigger>
-              <TabsTrigger value="text" className="text-xs px-4 py-2">Text</TabsTrigger>
-              <TabsTrigger value="code" className="text-xs px-4 py-2">Code</TabsTrigger>
-              <TabsTrigger value="link" className="text-xs px-4 py-2">Links</TabsTrigger>
-              <TabsTrigger value="image" className="text-xs px-4 py-2">Images</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Tabs - only show for main tabs */}
+        {activeTab !== 'profile' && activeTab !== 'history' && (
+          <div className="mt-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full justify-start overflow-x-auto pb-1 scrollbar-hide">
+                <TabsTrigger value="all" className="text-xs px-4 py-2">All</TabsTrigger>
+                <TabsTrigger value="pinned" className="text-xs px-4 py-2">Pinned</TabsTrigger>
+                <TabsTrigger value="text" className="text-xs px-4 py-2">Text</TabsTrigger>
+                <TabsTrigger value="code" className="text-xs px-4 py-2">Code</TabsTrigger>
+                <TabsTrigger value="link" className="text-xs px-4 py-2">Links</TabsTrigger>
+                <TabsTrigger value="image" className="text-xs px-4 py-2">Images</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -588,7 +699,13 @@ export default function MobilePWA() {
         }}
       >
         <AnimatePresence>
-          {renderClipboardItems()}
+          {activeTab === 'history' ? (
+            renderHistoryItems()
+          ) : activeTab === 'profile' ? (
+            renderProfileView()
+          ) : (
+            renderClipboardItems()
+          )}
         </AnimatePresence>
 
         {/* Add a spacer at the bottom to ensure content is visible above the bottom nav */}
@@ -780,58 +897,43 @@ export default function MobilePWA() {
         <div className="flex items-center justify-around">
           <Button
             variant={activeTab === 'all' ? "default" : "ghost"}
-            className="h-12 w-12 p-0 rounded-full"
+            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'all' ? 'bg-indigo-600 text-white' : ''}`}
             onClick={() => setActiveTab('all')}
           >
             <Home className="h-5 w-5" />
           </Button>
 
           <Button
-            variant={activeTab === 'text' ? "default" : "ghost"}
-            className="h-12 w-12 p-0 rounded-full"
-            onClick={() => setActiveTab('text')}
+            variant={activeTab === 'history' ? "default" : "ghost"}
+            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'history' ? 'bg-indigo-600 text-white' : ''}`}
+            onClick={() => setActiveTab('history')}
           >
             <Clock className="h-5 w-5" />
-            {items.filter(item => item.type === 'text').length > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {items.filter(item => item.type === 'text').length}
-              </span>
-            )}
           </Button>
 
           <div className="-mt-8">
             <Button
-              className="h-16 w-16 rounded-full flex items-center justify-center shadow-lg"
+              className="h-16 w-16 rounded-full flex items-center justify-center shadow-lg bg-indigo-600 hover:bg-indigo-700"
               onClick={() => setShowAddModal(true)}
             >
-              <Plus className="h-7 w-7" />
+              <Plus className="h-7 w-7 text-white" />
             </Button>
           </div>
 
           <Button
             variant={activeTab === 'pinned' ? "default" : "ghost"}
-            className="h-12 w-12 p-0 rounded-full"
+            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'pinned' ? 'bg-indigo-600 text-white' : ''}`}
             onClick={() => setActiveTab('pinned')}
           >
-            <Filter className="h-5 w-5" />
-            {items.filter(item => item.pinned).length > 0 && (
-              <span className="absolute top-0 right-0 bg-indigo-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {items.filter(item => item.pinned).length}
-              </span>
-            )}
+            <Pin className="h-5 w-5" />
           </Button>
 
           <Button
-            variant={activeTab === 'link' ? "default" : "ghost"}
-            className="h-12 w-12 p-0 rounded-full"
-            onClick={() => setActiveTab('link')}
+            variant={activeTab === 'profile' ? "default" : "ghost"}
+            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'profile' ? 'bg-indigo-600 text-white' : ''}`}
+            onClick={() => setActiveTab('profile')}
           >
             <User className="h-5 w-5" />
-            {items.filter(item => item.type === 'link').length > 0 && (
-              <span className="absolute top-0 right-0 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {items.filter(item => item.type === 'link').length}
-              </span>
-            )}
           </Button>
         </div>
       </motion.div>
