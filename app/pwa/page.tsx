@@ -185,29 +185,46 @@ export default function MobilePWA() {
     }
   };
 
-  // Sorted items with pinned at top
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      // First sort by pinned status
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
+  // Update the filteredItems to only show relevant items for each tab
+  const filteredItems = useMemo(() => {
+    // First filter by tab/page type
+    let filtered = [...items];
+
+    // Filter based on active tab
+    if (activeTab === 'pinned') {
+      filtered = filtered.filter(item => item.pinned);
+    } else if (activeTab === 'text') {
+      filtered = filtered.filter(item => item.type === 'text');
+    } else if (activeTab === 'code') {
+      filtered = filtered.filter(item => item.type === 'code');
+    } else if (activeTab === 'link') {
+      filtered = filtered.filter(item => item.type === 'link');
+    } else if (activeTab === 'image') {
+      filtered = filtered.filter(item => item.type === 'image');
+    }
+    // For 'all' tab, we don't filter
+
+    // Then filter by search query if there is one
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter(item =>
+        item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        item.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Sort with pinned at top for non-history views
+    return filtered.sort((a, b) => {
+      // First sort by pinned status (except in pinned tab where all are pinned)
+      if (activeTab !== 'pinned') {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+      }
 
       // Then sort by timestamp (newest first)
       return b.timestamp.getTime() - a.timestamp.getTime();
     });
-  }, [items]);
-
-  const filteredItems = sortedItems.filter(item => {
-    // First filter by tab
-    if (activeTab !== 'all' && activeTab !== 'pinned' && item.type !== activeTab) return false;
-    if (activeTab === 'pinned' && !item.pinned) return false;
-
-    // Then filter by search query
-    if (searchQuery.trim() === '') return true;
-    return item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           item.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-           item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  }, [items, searchQuery, activeTab]);
 
   const togglePin = (id: string) => {
     setItems(prevItems => {
@@ -537,7 +554,7 @@ export default function MobilePWA() {
       );
     }
 
-    return sortedItems.map((item) => (
+    return items.map((item: ClipboardItem) => (
       <motion.div
         key={item.id}
         initial={{ opacity: 0, y: 10 }}
@@ -717,8 +734,10 @@ export default function MobilePWA() {
             // Only show history items in history tab
             renderHistoryItems()
           ) : activeTab === 'profile' ? (
+            // Only show profile in profile tab
             renderProfileView()
           ) : (
+            // Show filtered clipboard items in other tabs
             renderClipboardItems()
           )}
         </AnimatePresence>
@@ -897,7 +916,7 @@ export default function MobilePWA() {
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - update to only color the icon */}
       <motion.div
         className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 z-20"
         style={{
