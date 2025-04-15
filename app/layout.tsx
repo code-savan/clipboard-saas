@@ -10,8 +10,21 @@ const dmSans = DM_Sans({ subsets: ['latin'] });
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Instant Clipboard - Smart Clipboard Manager',
-  description: 'Enhance your productivity with our intelligent clipboard history manager',
+  title: 'Instant ClipBoard - Smart Clipboard History',
+  description: 'Never lose important text, code or links again with our intelligent clipboard manager',
+  manifest: '/manifest.json',
+  themeColor: '#4f46e5',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Instant ClipBoard',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({
@@ -21,6 +34,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="theme-color" content="#4f46e5" />
+      </head>
       <body className={`${dmSans.className} ${inter.variable} flex flex-col min-h-screen`}>
         <ThemeProvider
           attribute="class"

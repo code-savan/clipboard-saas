@@ -101,6 +101,11 @@ export default function Home() {
       // Show appropriate modal based on device type
       if (isMobile) {
         setModalType('mobile');
+        // Direct mobile users to PWA version
+        toast({
+          title: 'Mobile Detected',
+          description: 'This extension is desktop-only. Try our web app for mobile access.',
+        });
       } else {
         setModalType('desktop');
       }
@@ -732,37 +737,23 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-center mb-2">Get the Mobile App</h4>
+                    <h4 className="text-lg font-medium text-center mb-2">Mobile Access</h4>
                     <p className="text-slate-600 dark:text-slate-300 text-center mb-6">
-                      Access your clipboard history on the go with our mobile application.
+                      Mobile support limited to our web app due to browser restrictions. Add to your home screen for the best experience.
                     </p>
-                    <div className="flex flex-col gap-3">
-                      <Button
-                        className="w-full py-5 text-base flex items-center justify-center gap-2"
-                        onClick={() => {
-                          window.location.href = 'https://apps.apple.com/app/instant-clipboard';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                          <path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06z"></path>
-                          <path d="M10 2c1 .5 2 2 2 5"></path>
-                        </svg>
-                        Download for iOS
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full py-5 text-base flex items-center justify-center gap-2"
-                        onClick={() => {
-                          window.location.href = 'https://play.google.com/store/apps/details?id=com.instant.clipboard';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                          <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                          <path d="m13 13 6 6"></path>
-                        </svg>
-                        Download for Android
-                      </Button>
-                    </div>
+                    <Button
+                      className="w-full py-5 text-base flex items-center justify-center gap-2"
+                      onClick={() => {
+                        window.location.href = '/pwa';
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <path d="M20.4 14.5L16 10 4 20"></path>
+                      </svg>
+                      Open Web App
+                    </Button>
                   </>
                 )}
               </div>
