@@ -25,6 +25,9 @@ type ClipboardItem = {
   tags?: string[];
 };
 
+// Fix reload duplication by adding a global variable outside of component
+let lastClipboardContent = '';
+
 export default function MobilePWA() {
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<ClipboardItem[]>([]);
@@ -76,6 +79,16 @@ export default function MobilePWA() {
             return itemAge <= maxAge;
           });
 
+        // Get the most recent item and set it as last clipboard content to prevent duplication
+        if (validItems.length > 0) {
+          // Explicitly cast the array to ensure TypeScript recognizes the correct types
+          const typedItems = validItems as ClipboardItem[];
+          const mostRecentItem = typedItems.sort((a, b) =>
+            b.timestamp.getTime() - a.timestamp.getTime()
+          )[0];
+          lastClipboardContent = mostRecentItem.content;
+        }
+
         setItems(validItems);
         setClipCount(validItems.length);
       } catch (error) {
@@ -84,9 +97,6 @@ export default function MobilePWA() {
     }
 
     setIsLoading(false);
-
-    // Keep track of last clipboard content to prevent duplicates
-    let lastClipboardContent = '';
 
     // Set up clipboard monitoring
     const checkClipboard = async () => {
@@ -604,7 +614,11 @@ export default function MobilePWA() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clipboard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <h1 className="text-lg font-semibold">Instant ClipBoard</h1>
+            <h1 className="text-lg font-semibold">
+              {activeTab === 'history' ? 'Clipboard History' :
+               activeTab === 'profile' ? 'User Profile' :
+               'Instant ClipBoard'}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             {isMultiSelectMode ? (
@@ -698,8 +712,9 @@ export default function MobilePWA() {
           WebkitOverflowScrolling: 'touch' // iOS momentum scrolling
         }}
       >
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {activeTab === 'history' ? (
+            // Only show history items in history tab
             renderHistoryItems()
           ) : activeTab === 'profile' ? (
             renderProfileView()
