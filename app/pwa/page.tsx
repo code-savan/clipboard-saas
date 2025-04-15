@@ -358,8 +358,8 @@ export default function MobilePWA() {
             )}
             <Badge variant={
               item.type === 'code' ? "secondary" :
-              item.type === 'link' ? "blue" :
-              item.type === 'image' ? "green" : "default"
+              item.type === 'link' ? "outline" :
+              item.type === 'image' ? "default" : "default"
             }>
               {item.type}
             </Badge>
