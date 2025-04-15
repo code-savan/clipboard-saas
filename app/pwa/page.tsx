@@ -112,7 +112,7 @@ export default function MobilePWA() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [items]); // Add items dependency to track changes for duplicate checking
+  }, []); // Remove items dependency to prevent frequent refreshes
 
   // Save items to localStorage whenever they change
   useEffect(() => {
@@ -896,44 +896,44 @@ export default function MobilePWA() {
       >
         <div className="flex items-center justify-around">
           <Button
-            variant={activeTab === 'all' ? "default" : "ghost"}
-            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'all' ? 'bg-indigo-600 text-white' : ''}`}
+            variant="ghost"
+            className="h-12 w-12 p-0 rounded-full"
             onClick={() => setActiveTab('all')}
           >
-            <Home className="h-5 w-5" />
+            <Home className={`h-5 w-5 ${activeTab === 'all' ? 'text-indigo-600' : ''}`} />
           </Button>
 
           <Button
-            variant={activeTab === 'history' ? "default" : "ghost"}
-            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'history' ? 'bg-indigo-600 text-white' : ''}`}
+            variant="ghost"
+            className="h-12 w-12 p-0 rounded-full"
             onClick={() => setActiveTab('history')}
           >
-            <Clock className="h-5 w-5" />
+            <Clock className={`h-5 w-5 ${activeTab === 'history' ? 'text-indigo-600' : ''}`} />
           </Button>
 
           <div className="-mt-8">
             <Button
-              className="h-16 w-16 rounded-full flex items-center justify-center shadow-lg bg-indigo-600 hover:bg-indigo-700"
+              className="h-16 w-16 rounded-full flex items-center justify-center shadow-lg"
               onClick={() => setShowAddModal(true)}
             >
-              <Plus className="h-7 w-7 text-white" />
+              <Plus className="h-7 w-7" />
             </Button>
           </div>
 
           <Button
-            variant={activeTab === 'pinned' ? "default" : "ghost"}
-            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'pinned' ? 'bg-indigo-600 text-white' : ''}`}
+            variant="ghost"
+            className="h-12 w-12 p-0 rounded-full"
             onClick={() => setActiveTab('pinned')}
           >
-            <Pin className="h-5 w-5" />
+            <Pin className={`h-5 w-5 ${activeTab === 'pinned' ? 'text-indigo-600' : ''}`} />
           </Button>
 
           <Button
-            variant={activeTab === 'profile' ? "default" : "ghost"}
-            className={`h-12 w-12 p-0 rounded-full ${activeTab === 'profile' ? 'bg-indigo-600 text-white' : ''}`}
+            variant="ghost"
+            className="h-12 w-12 p-0 rounded-full"
             onClick={() => setActiveTab('profile')}
           >
-            <User className="h-5 w-5" />
+            <User className={`h-5 w-5 ${activeTab === 'profile' ? 'text-indigo-600' : ''}`} />
           </Button>
         </div>
       </motion.div>
