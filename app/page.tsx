@@ -3,24 +3,37 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clipboard, Check, ArrowRight, Star, Zap, Clock, Shield, Sparkles, MessageSquare, Mail, CheckCheck, Loader2, MousePointer, ArrowDownToLine, Layers } from 'lucide-react';
+import { Clipboard, Check, ArrowRight, Star, Zap, Clock, Shield, Sparkles, MessageSquare, Mail, CheckCheck, Loader2, MousePointer, ArrowDownToLine, Layers, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { validateEmail } from '@/lib/utils';
 import { saveEmail, createUser } from '@/lib/db';
 // import ClipboardWidget from '@/components/ClipboardWidget';  // Temporarily commented out
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ModeToggle } from '@/components/ModeToggle';
 import { Navbar } from '@/components/Navbar';
 import { Element } from 'react-scroll';
 import Image from 'next/image';
 import Footer from '@/components/Footer';
 
+// Add Chrome API type declaration
+declare global {
+  interface Window {
+    chrome?: {
+      webstore?: {
+        install: (url: string, successCallback: () => void, failureCallback: (error: Error) => void) => void;
+      };
+    };
+  }
+}
+
 export default function Home() {
   const [email, setEmail] = useState('');
   const [isWidgetUnlocked, setIsWidgetUnlocked] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState<'desktop' | 'mobile'>('desktop');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,6 +50,11 @@ export default function Home() {
     }
   }, []);
 
+  // Handle modal close
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateEmail(email)) {
@@ -48,10 +66,11 @@ export default function Home() {
 
     try {
       // Save to localStorage for widget access
-      localStorage.setItem('userEmail', email);
+    localStorage.setItem('userEmail', email);
 
       // Get device information
       const device = navigator.userAgent;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(device);
 
       // Try to get country information using a simple IP-based API
       let country = '';
@@ -77,31 +96,38 @@ export default function Home() {
         console.warn('User creation might have failed, but continuing...');
       }
 
-      setIsWidgetUnlocked(true);
-      toast({
-        title: 'Success!',
-        description: 'Redirecting you to the Chrome Web Store...',
-      });
+    setIsWidgetUnlocked(true);
 
-      // Redirect to Chrome Web Store after a short delay (1.5 seconds)
-      setTimeout(() => {
-        window.location.href = 'https://chromewebstore.google.com/detail/instant-clipboard/ioepkbbfackkjemmhafieepbiliagafc';
-      }, 1500);
+      // Show appropriate modal based on device type
+      if (isMobile) {
+        setModalType('mobile');
+      } else {
+        setModalType('desktop');
+      }
+
+      // Show the modal
+      setShowModal(true);
+
+    toast({
+        title: 'Success!',
+        description: isMobile ? 'Install our mobile app to continue' : 'Install our Chrome extension to continue',
+      });
     } catch (error) {
       console.error('Error during submission:', error);
-      // Even if there's an error with backend, let the user proceed in demo mode
+      // Even if there's an error with backend, let the user proceed
       localStorage.setItem('userEmail', email);
       setIsWidgetUnlocked(true);
 
       toast({
-        title: 'Demo Mode Activated',
-        description: 'Redirecting you to the Chrome Web Store...',
+        title: 'Error',
+        description: 'There was an issue, but you can still proceed to installation.',
+        variant: 'destructive',
       });
 
-      // Still redirect to Chrome Web Store after a short delay
-      setTimeout(() => {
-        window.location.href = 'https://chromewebstore.google.com/detail/instant-clipboard/ioepkbbfackkjemmhafieepbiliagafc';
-      }, 1500);
+      // Still show the modal
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setModalType(isMobile ? 'mobile' : 'desktop');
+      setShowModal(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -187,10 +213,30 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
+                  className="flex items-center gap-2"
                 >
                   <Button className="w-full sm:w-auto" size="lg">
                     <Check className="mr-2 h-4 w-4" />
                     Accessed with {email}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setShowModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Image
+                      src="/chrome-icon.png"
+                      alt="Chrome Icon"
+                      width={16}
+                      height={16}
+                      className="object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://www.google.com/chrome/static/images/chrome-logo.svg";
+                      }}
+                    />
+                    Install Extension
                   </Button>
                   <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                     Double-tap Tab to open the clipboard history panel ↓
@@ -594,6 +640,148 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Installation Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="bg-white dark:bg-slate-900 rounded-xl shadow-xl max-w-md w-full mx-auto overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {modalType === 'desktop' ? 'Install Chrome Extension' : 'Get Mobile App'}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="h-5 w-5 text-slate-500" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {modalType === 'desktop' ? (
+                  <>
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="relative w-24 h-24">
+                        <Image
+                          src="/chrome-icon.png"
+                          alt="Chrome Icon"
+                          width={96}
+                          height={96}
+                          className="object-contain"
+                          onError={(e) => {
+                            // Fallback if image doesn't exist
+                            const target = e.target as HTMLImageElement;
+                            target.src = "https://www.google.com/chrome/static/images/chrome-logo.svg";
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <h4 className="text-lg font-medium text-center mb-2">Complete Your Setup</h4>
+                    <p className="text-slate-600 dark:text-slate-300 text-center mb-6">
+                      Install our Chrome extension to access your clipboard history from anywhere.
+                    </p>
+                    <Button
+                      className="w-full py-6 text-base flex items-center justify-center gap-2"
+                      onClick={() => {
+                        window.open('https://chrome.google.com/webstore/detail/instant-clipboard/ioepkbbfackkjemmhafieepbiliagafc', '_blank');
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <line x1="21.17" y1="8" x2="12" y2="8"></line>
+                        <line x1="3.95" y1="6.06" x2="8.54" y2="14"></line>
+                        <line x1="10.88" y1="21.94" x2="15.46" y2="14"></line>
+                      </svg>
+                      Add to Chrome
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="relative w-24 h-24 flex items-center justify-center">
+                        <Image
+                          src="/mobile-app-icon.png"
+                          alt="Mobile App Icon"
+                          width={96}
+                          height={96}
+                          className="object-contain"
+                          onError={(e) => {
+                            // Fallback if image doesn't exist
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
+                            if (parent) {
+                              const fallback = document.createElement('div');
+                              fallback.className = "w-24 h-24 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl flex items-center justify-center";
+                              const icon = document.createElement('div');
+                              icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600 dark:text-indigo-400"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12" y2="18"></line></svg>';
+                              fallback.appendChild(icon);
+                              parent.appendChild(fallback);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <h4 className="text-lg font-medium text-center mb-2">Get the Mobile App</h4>
+                    <p className="text-slate-600 dark:text-slate-300 text-center mb-6">
+                      Access your clipboard history on the go with our mobile application.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      <Button
+                        className="w-full py-5 text-base flex items-center justify-center gap-2"
+                        onClick={() => {
+                          window.location.href = 'https://apps.apple.com/app/instant-clipboard';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                          <path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06z"></path>
+                          <path d="M10 2c1 .5 2 2 2 5"></path>
+                        </svg>
+                        Download for iOS
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full py-5 text-base flex items-center justify-center gap-2"
+                        onClick={() => {
+                          window.location.href = 'https://play.google.com/store/apps/details?id=com.instant.clipboard';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                          <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+                          <path d="m13 13 6 6"></path>
+                        </svg>
+                        Download for Android
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
+                By installing, you agree to our{' '}
+                <Link href="/terms" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href="/privacy" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                  Privacy Policy
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Temporarily hidden
       {isWidgetUnlocked && <ClipboardWidget />}
