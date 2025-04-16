@@ -3,21 +3,30 @@ import type { Metadata } from 'next';
 import { DM_Sans, Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/toaster';
 import Link from 'next/link';
 
 const dmSans = DM_Sans({ subsets: ['latin'] });
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Instant ClipBoard - Smart Clipboard History',
-  description: 'Never lose important text, code or links again with our intelligent clipboard manager',
+  title: 'InstantClipboard',
+  description: 'A modern clipboard manager for your daily needs',
   manifest: '/manifest.json',
-  themeColor: '#4f46e5',
+  icons: {
+    icon: [
+      { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/favicon.ico', sizes: '48x48' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Instant ClipBoard',
+    title: 'Instant Clipboard',
   },
   viewport: {
     width: 'device-width',
@@ -25,6 +34,7 @@ export const metadata: Metadata = {
     maximumScale: 1,
     userScalable: false,
   },
+  themeColor: '#020817',
 };
 
 export default function RootLayout({
@@ -35,11 +45,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#4f46e5" />
+        <meta name="apple-mobile-web-app-title" content="InstantClipboard" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#020817" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${dmSans.className} ${inter.variable} flex flex-col min-h-screen`}>
         <ThemeProvider
@@ -52,7 +66,7 @@ export default function RootLayout({
             <main className="flex-grow">
               {children}
             </main>
-            <Toaster position="top-center" richColors />
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

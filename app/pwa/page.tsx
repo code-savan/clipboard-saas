@@ -132,6 +132,24 @@ export default function MobilePWA() {
 
   // Function to add a new clipboard item
   const addNewItem = (content: string) => {
+    // Check if content already exists in items
+    const existingItem = items.find(item => item.content === content);
+
+    if (existingItem) {
+      // Move the existing item to the top of the list instead of creating a new one
+      setItems(prevItems => [
+        ...prevItems.filter(item => item.content !== content),
+        {...existingItem, timestamp: new Date()} // Update timestamp to current time
+      ]);
+
+      toast({
+        title: "Moved to Top",
+        description: "Item already exists and was moved to the top",
+        duration: 2000,
+      });
+      return;
+    }
+
     const type = content.startsWith('http') && !content.match(/\s/) ? 'link' : 'text';
 
     // Create new item
@@ -410,7 +428,9 @@ export default function MobilePWA() {
           <Clipboard className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-4" />
           <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-3">No items found</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
-            {searchQuery ? 'Try a different search term' : 'Your clipboard history will appear here'}
+            {searchQuery ? 'Try a different search term' :
+             activeTab === 'pinned' ? 'Pin items to access them quickly here' :
+             'Your clipboard history will appear here'}
           </p>
         </motion.div>
       );
@@ -428,19 +448,17 @@ export default function MobilePWA() {
           damping: 30,
           stiffness: 400
         }}
-        className={`mb-6 p-5 bg-white dark:bg-slate-900 border ${item.pinned ? 'border-indigo-200 dark:border-indigo-800' : 'border-slate-200 dark:border-slate-700'} rounded-xl shadow-sm ${item.pinned ? 'ring-1 ring-indigo-200 dark:ring-indigo-900' : ''}`}
+        className={`mb-6 p-5 bg-white dark:bg-slate-900 border ${item.pinned ? 'border-indigo-200 dark:border-indigo-800' : 'border-slate-200 dark:border-slate-700'} rounded-xl shadow-sm ${item.pinned ? 'ring-1 ring-indigo-200 dark:ring-indigo-900' : ''} ${isMultiSelectMode ? 'cursor-pointer' : ''}`}
+        onClick={() => isMultiSelectMode ? toggleItemSelection(item.id) : null}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {isMultiSelectMode && (
-              <Button
-                variant={selectedItems.includes(item.id) ? "default" : "outline"}
-                size="sm"
-                className="h-7 w-7 p-0 rounded-full"
-                onClick={() => toggleItemSelection(item.id)}
+              <div
+                className={`h-7 w-7 flex items-center justify-center rounded-full ${selectedItems.includes(item.id) ? 'bg-indigo-600' : 'border-2 border-gray-300'}`}
               >
-                {selectedItems.includes(item.id) && <Check className="h-3 w-3" />}
-              </Button>
+                {selectedItems.includes(item.id) && <Check className="h-3 w-3 text-white" />}
+              </div>
             )}
             <Badge variant={
               item.type === 'code' ? "secondary" :
@@ -461,12 +479,12 @@ export default function MobilePWA() {
           </span>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4" onClick={(e) => isMultiSelectMode ? e.stopPropagation() : null}>
           {renderItemContent(item)}
         </div>
 
         {item.content.length > 150 && (
-          <div className="text-center mb-3">
+          <div className="text-center mb-3" onClick={(e) => isMultiSelectMode ? e.stopPropagation() : null}>
             <Button
               variant="ghost"
               size="sm"
@@ -488,7 +506,7 @@ export default function MobilePWA() {
           </div>
         )}
 
-        <div className="flex justify-between items-center mt-3">
+        <div className="flex justify-between items-center mt-3" onClick={(e) => isMultiSelectMode ? e.stopPropagation() : null}>
           <div className="flex gap-3">
             <Button
               size="sm"
@@ -629,70 +647,22 @@ export default function MobilePWA() {
       {/* Header */}
       <header className={`sticky top-0 z-10 px-5 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-all ${scrollY > 20 ? 'shadow-sm' : ''}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clipboard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <h1 className="text-lg font-semibold">
-              {activeTab === 'history' ? 'Clipboard History' :
-               activeTab === 'profile' ? 'User Profile' :
-               'Instant ClipBoard'}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {isMultiSelectMode ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setIsMultiSelectMode(false);
-                    setSelectedItems([]);
-                  }}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={handleBulkDelete}
-                  disabled={selectedItems.length === 0}
-                  className="h-8"
-                >
-                  Delete ({selectedItems.length})
-                </Button>
-              </>
-            ) : (
-              activeTab !== 'profile' && activeTab !== 'history' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsMultiSelectMode(true)}
-                  className="h-8"
-                >
-                  Select
-                </Button>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* Search input - only show for main tabs */}
-        {activeTab !== 'profile' && activeTab !== 'history' && (
-          <div className="mt-3">
-            <div className="relative">
+          <div className="flex items-center gap-3 flex-1">
+            <Clipboard className="h-6 w-6 text-slate-400" />
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 type="text"
                 placeholder="Search clipboard..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-slate-50 dark:bg-slate-800 h-10"
+                className="pl-10 pr-10 bg-slate-800 h-10 rounded-[45px] w-full border-0"
               />
               {searchQuery && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full rounded-l-none"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 rounded-full"
                   onClick={() => setSearchQuery('')}
                 >
                   <X className="h-4 w-4" />
@@ -700,47 +670,123 @@ export default function MobilePWA() {
               )}
             </div>
           </div>
-        )}
-
-        {/* Tabs - only show for main tabs */}
-        {activeTab !== 'profile' && activeTab !== 'history' && (
-          <div className="mt-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full justify-start overflow-x-auto pb-1 scrollbar-hide">
-                <TabsTrigger value="all" className="text-xs px-4 py-2">All</TabsTrigger>
-                <TabsTrigger value="pinned" className="text-xs px-4 py-2">Pinned</TabsTrigger>
-                <TabsTrigger value="text" className="text-xs px-4 py-2">Text</TabsTrigger>
-                <TabsTrigger value="code" className="text-xs px-4 py-2">Code</TabsTrigger>
-                <TabsTrigger value="link" className="text-xs px-4 py-2">Links</TabsTrigger>
-                <TabsTrigger value="image" className="text-xs px-4 py-2">Images</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setActiveTab('profile')}
+            className="h-10 w-10 p-0 rounded-full bg-slate-800 ml-3"
+          >
+            <User className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       {/* Main Content */}
       <div
         ref={contentRef}
-        className="flex-1 overflow-y-auto px-5 py-6 overscroll-bounce"
+        className="flex-1 overflow-y-auto px-5 overscroll-bounce"
         style={{
           scrollBehavior: 'smooth',
           scrollbarWidth: 'none', // Firefox
           WebkitOverflowScrolling: 'touch' // iOS momentum scrolling
         }}
       >
-        <AnimatePresence mode="wait">
-          {activeTab === 'history' ? (
-            // Only show history items in history tab
-            renderHistoryItems()
-          ) : activeTab === 'profile' ? (
-            // Only show profile in profile tab
-            renderProfileView()
-          ) : (
-            // Show filtered clipboard items in other tabs
-            renderClipboardItems()
-          )}
-        </AnimatePresence>
+        {activeTab !== 'profile' && activeTab !== 'history' && (
+          <div className="sticky -top-1 z-10 pt-6 pb-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-50 dark:border-slate-950">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800"
+                  onClick={() => setActiveTab('text')}
+                >
+                  <div className="h-4 w-4 border-2 border-gray-200 rounded"></div>
+                  <span className="text-gray-200 text-xs">Text</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800"
+                  onClick={() => setActiveTab('link')}
+                >
+                  <div className="h-4 w-4 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-200">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                  </div>
+                  <span className="text-gray-200 text-xs">Links</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800"
+                  onClick={() => setActiveTab('image')}
+                >
+                  <div className="h-4 w-4 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-200">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                  </div>
+                  <span className="text-gray-200 text-xs">Image</span>
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                {isMultiSelectMode && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleBulkDelete}
+                    className="h-7 w-7 p-0 rounded-full bg-slate-800 text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+                  className={`h-7 w-7 p-0 rounded-full bg-slate-800 ${isMultiSelectMode ? 'ring-2 ring-indigo-500' : ''}`}
+                >
+                  <div className={`h-5 w-5 rounded-full border-2 ${isMultiSelectMode ? 'border-indigo-500' : 'border-gray-200'}`}></div>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className={activeTab === 'history' ? 'pt-8' : 'pt-4'}>
+          <AnimatePresence mode="wait" initial={false}>
+            {activeTab === 'history' ? (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {renderHistoryItems()}
+              </motion.div>
+            ) : activeTab === 'profile' ? (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {renderProfileView()}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="clipboard"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {renderClipboardItems()}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Add a spacer at the bottom to ensure content is visible above the bottom nav */}
         <div className="h-24"></div>
@@ -916,58 +962,60 @@ export default function MobilePWA() {
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation - update to only color the icon */}
+      {/* Bottom Navigation - updated layout to match the provided image */}
       <motion.div
         className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 z-20"
         style={{
           filter: 'drop-shadow(0px -2px 8px rgba(0,0,0,0.05))',
-          borderTopLeftRadius: '1.5rem',
-          borderTopRightRadius: '1.5rem',
         }}
         initial={{ y: 100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       >
-        <div className="flex items-center justify-around">
+        <div className="flex items-center justify-between">
           <Button
             variant="ghost"
-            className="h-12 w-12 p-0 rounded-full"
+            className="h-16 w-16 p-0 flex flex-col items-center gap-1 rounded-full bg-transparent hover:bg-transparent"
             onClick={() => setActiveTab('all')}
           >
-            <Home className={`h-5 w-5 ${activeTab === 'all' ? 'text-indigo-600' : ''}`} />
+            <Home className={`h-5 w-5 ${activeTab === 'all' ? '' : 'text-gray-400'}`} />
+            <span className={`text-xs ${activeTab === 'all' ? '' : 'text-gray-400'}`}>Home</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="h-12 w-12 p-0 rounded-full"
+            className="h-16 w-16 p-0 flex flex-col items-center gap-1 rounded-full bg-transparent hover:bg-transparent"
             onClick={() => setActiveTab('history')}
           >
-            <Clock className={`h-5 w-5 ${activeTab === 'history' ? 'text-indigo-600' : ''}`} />
+            <Clock className={`h-5 w-5 ${activeTab === 'history' ? '' : 'text-gray-400'}`} />
+            <span className={`text-xs ${activeTab === 'history' ? '' : 'text-gray-400'}`}>History</span>
           </Button>
-
-          <div className="-mt-8">
-            <Button
-              className="h-16 w-16 rounded-full flex items-center justify-center shadow-lg"
-              onClick={() => setShowAddModal(true)}
-            >
-              <Plus className="h-7 w-7" />
-            </Button>
-          </div>
 
           <Button
             variant="ghost"
-            className="h-12 w-12 p-0 rounded-full"
+            className="h-16 w-16 p-0 flex flex-col items-center gap-1 rounded-full bg-white hover:bg-transparent"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="h-6 w-6 text-black" />
+            {/* <span className="text-xs text-black">Add</span> */}
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="h-16 w-16 p-0 flex flex-col items-center gap-1 rounded-full bg-transparent hover:bg-transparent"
             onClick={() => setActiveTab('pinned')}
           >
-            <Pin className={`h-5 w-5 ${activeTab === 'pinned' ? 'text-indigo-600' : ''}`} />
+            <Pin className={`h-5 w-5 ${activeTab === 'pinned' ? '' : 'text-gray-400'}`} />
+            <span className={`text-xs ${activeTab === 'pinned' ? '' : 'text-gray-400'}`}>Pinned</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="h-12 w-12 p-0 rounded-full"
+            className="h-16 w-16 p-0 flex flex-col items-center gap-1 rounded-full bg-transparent hover:bg-transparent"
             onClick={() => setActiveTab('profile')}
           >
-            <User className={`h-5 w-5 ${activeTab === 'profile' ? 'text-indigo-600' : ''}`} />
+            <User className={`h-5 w-5 ${activeTab === 'profile' ? '' : 'text-gray-400'}`} />
+            <span className={`text-xs ${activeTab === 'profile' ? '' : 'text-gray-400'}`}>Profile</span>
           </Button>
         </div>
       </motion.div>
